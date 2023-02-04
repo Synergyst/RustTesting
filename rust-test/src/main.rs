@@ -44,9 +44,13 @@ fn get_key_state(r: KeyInput) -> bool {
   }
 }
 fn hex_to_i32(hex: &str) -> i32 {
-  i32::from_str_radix(hex, 16).unwrap()
+  let without_prefix = hex.trim_start_matches("0x");
+  i32::from_str_radix(without_prefix, 16).unwrap()
 }
-
+fn hex_to_i64(hex: &str) -> i64 {
+  let without_prefix = hex.trim_start_matches("0x");
+  i64::from_str_radix(without_prefix, 16).unwrap()
+}
 
 fn main() {
   println!("The area of the rectangle is {} square pixels.", area(640, 360));
