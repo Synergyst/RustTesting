@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 #![allow(unused_variables)]
+#![allow(unused_assignments)]
 #![allow(overflowing_literals)]
 use winapi::um::winuser::GetAsyncKeyState;
 use std::net::UdpSocket;
@@ -8,7 +9,7 @@ use std::fs;
 use std::path::Path;
 use std::mem::MaybeUninit;
 use std::{thread, time};
-use std::io::BufReader;
+use std::io::{BufReader, Sink};
 use anyhow;
 use clap::Parser;
 use cpal::{
@@ -143,13 +144,29 @@ fn modify_files(files: &mut Vec<String>) {
 }*/
 
 fn main() {
+  let folder_position: usize = 0;
+  let mut folder_position_max: usize = 0;
+  let file_position: usize = 0;
+  let mut file_position_max: usize = 0;
   let folders = list_folders("../synergyst-soundboard-util/sounds/").unwrap();
-  let starting_dir = format!("{}{}", folders[0], "/");
+  for folder in &folders {
+    println!("{}: {}", folder_position_max, folder);
+    folder_position_max += 1;
+  }
+  println!("Count of folders: {}", folder_position_max);
+  folder_position_max -= 1;
+  let starting_dir = format!("{}{}", folders[folder_position], "/");
   let files = list_files(starting_dir.as_str()).unwrap();
-
+  for file in &files {
+    println!("{}: {}", file_position_max, file);
+    file_position_max += 1;
+  }
+  println!("Count of files: {}", file_position_max);
+  file_position_max -= 1;
   let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
   let sink = rodio::Sink::try_new(&handle).unwrap();
-  let file = std::fs::File::open(&files[0]).unwrap();
+  //
+  let file = std::fs::File::open(&files[file_position]).unwrap();
   sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
   sink.sleep_until_end();
 
