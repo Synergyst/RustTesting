@@ -83,7 +83,27 @@ fn listen_for_key_press(key: u32) -> bool {
       key_state & 0x8000 != 0
   }
 }
-
+fn key_state_runner() {
+  loop {
+    let duration = time::Duration::from_millis(50);
+    let now = time::Instant::now();
+    thread::sleep(duration);
+    let is_numpad0_pressed = listen_for_key_press(0x60);
+    let is_numpad1_pressed = listen_for_key_press(0x61);
+    let is_numpad2_pressed = listen_for_key_press(0x62);
+    let is_numpad3_pressed = listen_for_key_press(0x63);
+    let is_numpad4_pressed = listen_for_key_press(0x64);
+    let is_numpad5_pressed = listen_for_key_press(0x65);
+    let is_numpad6_pressed = listen_for_key_press(0x66);
+    let is_numpad7_pressed = listen_for_key_press(0x67);
+    let is_numpad8_pressed = listen_for_key_press(0x68);
+    let is_numpad9_pressed = listen_for_key_press(0x69);
+    assert!(now.elapsed() >= duration);
+    print!("\r                                                                                                                                                                        \r");
+    print!("NUM 0: {:?}, NUM 1: {:?}, NUM 2: {:?}, NUM 3: {:?}, NUM 4: {:?}, NUM 5: {:?}, NUM 6: {:?}, NUM 7: {:?}, NUM 8: {:?}, NUM 9: {:?}",
+    is_numpad0_pressed, is_numpad1_pressed, is_numpad2_pressed, is_numpad3_pressed, is_numpad4_pressed, is_numpad5_pressed, is_numpad6_pressed, is_numpad7_pressed, is_numpad8_pressed, is_numpad9_pressed);
+  }
+}
 fn main() {
   //println!("The area of the rectangle is {} square pixels.", area(640, 360));
   //print!("{:?}", get_key_state(KeyInput::NextLibrary));
@@ -97,13 +117,11 @@ fn main() {
   for folder in folders {
     println!("Folder: {}", folder);
   }
-  let duration = time::Duration::from_millis(5000);
-  let now = time::Instant::now();
-  thread::sleep(duration);
-  let is_numpad0_pressed = listen_for_key_press(0x60);
-  assert!(now.elapsed() >= duration);
-  println!("{:?}", is_numpad0_pressed);
-
+  let handle = thread::spawn(|| {
+    key_state_runner();
+});
+// rest of the main function code
+handle.join().unwrap();
 }
 fn area(width: u32, height: u32) -> u32 {
   width * height
