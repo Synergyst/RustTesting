@@ -40,10 +40,10 @@ enum OffSet {
 struct KeyedInfoFile<'a> {
   snd_iter: &'a mut usize,
   actual_audio_file_list_size: usize,
-  is_cycle_forward_down: bool,
-  is_cycle_backward_down: bool,
-  prev_cycle_forward_down: bool,
-  prev_cycle_backward_down: bool,
+  is_cycle_forward_file_down: bool,
+  is_cycle_backward_file_down: bool,
+  prev_cycle_forward_file_down: bool,
+  prev_cycle_backward_file_down: bool,
   audio_file_list: &'a mut Vec<String>
 }
 struct KeyedInfoFolder<'a> {
@@ -81,16 +81,16 @@ fn hex_to_i64(hex: &str) -> i64 {
   }
 }*/
 fn cycle_sound_file(keyed_infos_file: &mut KeyedInfoFile) {
-  if keyed_infos_file.is_cycle_forward_down && keyed_infos_file.is_cycle_forward_down != keyed_infos_file.prev_cycle_forward_down || keyed_infos_file.is_cycle_backward_down && keyed_infos_file.is_cycle_backward_down != keyed_infos_file.prev_cycle_backward_down {
-    *keyed_infos_file.snd_iter = (*keyed_infos_file.snd_iter as isize + if keyed_infos_file.is_cycle_forward_down { 1 } else { -1 }) as usize % keyed_infos_file.actual_audio_file_list_size;
+  if keyed_infos_file.is_cycle_forward_file_down && keyed_infos_file.is_cycle_forward_file_down != keyed_infos_file.prev_cycle_forward_file_down || keyed_infos_file.is_cycle_backward_file_down && keyed_infos_file.is_cycle_backward_file_down != keyed_infos_file.prev_cycle_backward_file_down {
+    *keyed_infos_file.snd_iter = (*keyed_infos_file.snd_iter as isize + if keyed_infos_file.is_cycle_forward_file_down { 1 } else { -1 }) as usize % keyed_infos_file.actual_audio_file_list_size;
     // CHANGEME?
-    if *keyed_infos_file.snd_iter < 0 {
+    /*if *keyed_infos_file.snd_iter < 0 {
       *keyed_infos_file.snd_iter += keyed_infos_file.actual_audio_file_list_size;
-    }
+    }*/
     configure_next_sound_file(&keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter as usize]);
   }
 }
-fn cycle_sound_library(keyed_infos_folder: &mut KeyedInfoFolder) {
+fn cycle_sound_dir(keyed_infos_folder: &mut KeyedInfoFolder) {
   if keyed_infos_folder.is_cycle_forward_dir_down && keyed_infos_folder.is_cycle_forward_dir_down != keyed_infos_folder.prev_cycle_forward_dir_down || keyed_infos_folder.is_cycle_backward_dir_down && keyed_infos_folder.is_cycle_backward_dir_down != keyed_infos_folder.prev_cycle_backward_dir_down {
     *keyed_infos_folder.snd_dir_iter = (*keyed_infos_folder.snd_dir_iter as isize + if keyed_infos_folder.is_cycle_forward_dir_down { 1 } else { -1 }) as usize;
     if *keyed_infos_folder.snd_dir_iter >= keyed_infos_folder.actual_audio_dir_list_size {
@@ -157,28 +157,34 @@ fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: 
     let duration = time::Duration::from_millis(50);
     let now = time::Instant::now();
     thread::sleep(duration);
-    let is_numpad0_pressed = listen_for_key_press(0x60);
-    let is_numpad1_pressed = listen_for_key_press(0x61);
-    let is_numpad2_pressed = listen_for_key_press(0x62);
-    let is_numpad3_pressed = listen_for_key_press(0x63);
-    let is_numpad4_pressed = listen_for_key_press(0x64);
-    let is_numpad5_pressed = listen_for_key_press(0x65);
-    let is_numpad6_pressed = listen_for_key_press(0x66);
+    keyed_infos_file.is_cycle_forward_file_down = listen_for_key_press(0x60);
+    keyed_infos_file.is_cycle_backward_file_down = listen_for_key_press(0x61);
+    /*let is_numpad2_pressed = listen_for_key_press(0x62);
+    let is_numpad3_pressed = listen_for_key_press(0x63);*/
+    keyed_infos_folder.is_cycle_backward_dir_down = listen_for_key_press(0x64);
+    keyed_infos_folder.is_cycle_forward_dir_down = listen_for_key_press(0x65);
+    /*let is_numpad6_pressed = listen_for_key_press(0x66);
     let is_numpad7_pressed = listen_for_key_press(0x67);
     let is_numpad8_pressed = listen_for_key_press(0x68);
-    let is_numpad9_pressed = listen_for_key_press(0x69);
+    let is_numpad9_pressed = listen_for_key_press(0x69);*/
     assert!(now.elapsed() >= duration);
-    print!("\r                                                                                                                                                                        \r");
+    /*print!("\r                                                                                                                                                                        \r");
     print!("NUM 0: {:?}, NUM 1: {:?}, NUM 2: {:?}, NUM 3: {:?}, NUM 4: {:?}, NUM 5: {:?}, NUM 6: {:?}, NUM 7: {:?}, NUM 8: {:?}, NUM 9: {:?}",
-    is_numpad0_pressed, is_numpad1_pressed, is_numpad2_pressed, is_numpad3_pressed, is_numpad4_pressed, is_numpad5_pressed, is_numpad6_pressed, is_numpad7_pressed, is_numpad8_pressed, is_numpad9_pressed);
+    is_numpad0_pressed, is_numpad1_pressed, is_numpad2_pressed, is_numpad3_pressed, is_numpad4_pressed, is_numpad5_pressed, is_numpad6_pressed, is_numpad7_pressed, is_numpad8_pressed, is_numpad9_pressed);*/
     if is_numpad0_pressed {
-      cycle_sound_library(keyed_infos_folder);
+      println!("{}", keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]);
+      //cycle_sound_dir(keyed_infos_folder);
     }
     //
+    keyed_infos_file.prev_cycle_forward_file_down = keyed_infos_file.is_cycle_forward_file_down;
+    keyed_infos_file.prev_cycle_backward_file_down = keyed_infos_file.is_cycle_backward_file_down;
+    keyed_infos_folder.prev_cycle_forward_dir_down = keyed_infos_folder.is_cycle_forward_dir_down;
+    keyed_infos_folder.prev_cycle_backward_dir_down = keyed_infos_folder.is_cycle_backward_dir_down;
+    
   }
 }
 fn configure_next_sound_dir(sound_dir: &str) {
-  print!("\n{}\n", sound_dir);
+  print!("\n{:?}\n", sound_dir);
 }
 fn configure_next_sound_file(sound_file: &str) {
   print!("\n{}\n", sound_file);
@@ -204,9 +210,9 @@ fn main() {
   println!("Count of files: {}", file_position_max);
   file_position_max -= 1;
   // TODO: change audio_file_list to sound_file_list
-  let file_infos:KeyedInfoFile = KeyedInfoFile{snd_iter:&mut file_position,actual_audio_file_list_size:file_position_max,is_cycle_forward_down:false,is_cycle_backward_down:false,prev_cycle_forward_down:false,prev_cycle_backward_down:false,audio_file_list:&mut files};
+  let mut file_infos:KeyedInfoFile = KeyedInfoFile{snd_iter:&mut file_position,actual_audio_file_list_size:file_position_max,is_cycle_forward_file_down:false,is_cycle_backward_file_down:false,prev_cycle_forward_file_down:false,prev_cycle_backward_file_down:false,audio_file_list:&mut files};
   //
-  let folder_infos:KeyedInfoFolder = KeyedInfoFolder{snd_dir_iter:&mut folder_position,actual_audio_dir_list_size:folder_position_max,is_cycle_forward_dir_down:false,is_cycle_backward_dir_down:false,prev_cycle_forward_dir_down:false,prev_cycle_backward_dir_down:false,sound_dir_list:&mut folders};
+  let mut folder_infos:KeyedInfoFolder = KeyedInfoFolder{snd_dir_iter:&mut folder_position,actual_audio_dir_list_size:folder_position_max,is_cycle_forward_dir_down:false,is_cycle_backward_dir_down:false,prev_cycle_forward_dir_down:false,prev_cycle_backward_dir_down:false,sound_dir_list:&mut folders};
   /*let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
   let sink = rodio::Sink::try_new(&handle).unwrap();
   //
@@ -214,10 +220,11 @@ fn main() {
   sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
   sink.sleep_until_end();*/
   //
-  /*let handle = thread::spawn(|| {
-    key_state_runner();
+  /*let handle = thread::spawn(move || {
+    key_state_runner(&mut folder_infos, &mut file_infos);
   });
   //print!("{:?}", get_key_state(KeyInput::NextLibrary));
   // rest of the main function code
   handle.join().unwrap();*/
+  key_state_runner(&mut folder_infos, &mut file_infos);
 }
