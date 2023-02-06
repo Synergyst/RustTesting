@@ -12,8 +12,12 @@ use std::{thread, time};
 use std::io::{BufReader, Sink};
 use anyhow;
 use clap::Parser;
-use cpal;
-use rodio;
+//extern crate cpal;
+//use cpal::traits::{DeviceTrait, HostTrait};
+use rodio::cpal;
+use rodio::cpal::traits::{HostTrait, DeviceTrait};
+//use cpal::{traits::{HostTrait, DeviceTrait}};
+
 
 enum KeyInput {
   NextSound,
@@ -54,6 +58,12 @@ struct KeyedInfoFolder<'a> {
   prev_cycle_forward_dir_down: bool,
   prev_cycle_backward_dir_down: bool,
   sound_dir_list: &'a mut Vec<String>
+}
+struct DevInfo {
+  dev_index_output: i32,
+  dev_index_input: i32,
+  is_voice_down: bool,
+  prev_voice_down: bool,
 }
 
 fn bar(n: usize, offset: OffSet) -> Option<usize> {
@@ -152,9 +162,9 @@ fn listen_for_key_press(key: u32) -> bool {
       key_state & 0x8000 != 0
   }
 }
-fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: &mut KeyedInfoFile) {
+fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: &mut KeyedInfoFile, dev_infos: &mut DevInfo) {
   loop {
-    let is_voice_pressed: bool = listen_for_key_press(0x12);
+    dev_infos.is_voice_down = listen_for_key_press(0x12);
     keyed_infos_file.is_cycle_forward_file_down = listen_for_key_press(0x60);
     keyed_infos_file.is_cycle_backward_file_down = listen_for_key_press(0x61);
     /*let is_numpad2_pressed = listen_for_key_press(0x62);
@@ -248,13 +258,19 @@ fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: 
       //println!("{}", keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]);
       //
     }
-    if is_voice_pressed {
-      let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
-      let sink = rodio::Sink::try_new(&handle).unwrap();
+    if dev_infos.is_voice_down && dev_infos.prev_voice_down != dev_infos.is_voice_down {
       //
+      let host = rodio::cpal::default_host();
+      for device in host.devices().unwrap() {
+        device.name().map(|name| println!("Device name: {}", name)).expect("Device name not found");
+      }
+      //
+      /*let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
+      let sink = rodio::Sink::try_new(&handle).unwrap();
       let file = std::fs::File::open(&keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]).unwrap();
+      sink.set_volume(0.15);
       sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
-      sink.sleep_until_end();
+      sink.sleep_until_end();*/
     }
     //
     let duration = time::Duration::from_millis(50);
@@ -267,6 +283,9 @@ fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: 
     //
     keyed_infos_folder.prev_cycle_forward_dir_down = keyed_infos_folder.is_cycle_forward_dir_down;
     keyed_infos_folder.prev_cycle_backward_dir_down = keyed_infos_folder.is_cycle_backward_dir_down;
+    //
+    dev_infos.prev_voice_down = dev_infos.is_voice_down;
+    //
   }
 }
 fn configure_next_sound_dir(sound_dir: &str) {
@@ -281,6 +300,7 @@ fn main() {
   let mut file_position: usize = 0;
   let mut file_position_max: usize = 0;
   let mut folders = list_folders("../synergyst-soundboard-util/sounds/").unwrap();
+  //let mut folders = list_folders("./sounds/").unwrap();
   for folder in &folders {
     println!("{}: {}", folder_position_max, folder);
     folder_position_max += 1;
@@ -301,18 +321,80 @@ fn main() {
   let mut file_infos:KeyedInfoFile = KeyedInfoFile{snd_iter:&mut file_position,actual_audio_file_list_size:file_position_max,is_cycle_forward_file_down:false,is_cycle_backward_file_down:false,prev_cycle_forward_file_down:false,prev_cycle_backward_file_down:false,audio_file_list:&mut files};
   //
   let mut folder_infos:KeyedInfoFolder = KeyedInfoFolder{snd_dir_iter:&mut folder_position,actual_audio_dir_list_size:folder_position_max,is_cycle_forward_dir_down:false,is_cycle_backward_dir_down:false,prev_cycle_forward_dir_down:false,prev_cycle_backward_dir_down:false,sound_dir_list:&mut folders};
-  /*let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
-  let sink = rodio::Sink::try_new(&handle).unwrap();
   //
-  let file = std::fs::File::open(&files[file_position]).unwrap();
-  sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
-  sink.sleep_until_end();*/
+  let mut dev_infos:DevInfo = DevInfo{dev_index_input:1,dev_index_output:1,is_voice_down:false,prev_voice_down:false};
   //
-  /*let handle = thread::spawn(move || {
-    key_state_runner(&mut folder_infos, &mut file_infos);
-  });
-  //print!("{:?}", get_key_state(KeyInput::NextLibrary));
-  // rest of the main function code
-  handle.join().unwrap();*/
-  key_state_runner(&mut folder_infos, &mut file_infos);
+  /*let result = enumerate_devices();
+  println!("{:?}", result);*/
+  key_state_runner(&mut folder_infos, &mut file_infos, &mut dev_infos);
+}
+
+fn enumerate_devices() -> Result<(), anyhow::Error> {
+  println!("Supported hosts:\n  {:?}", cpal::ALL_HOSTS);
+  let available_hosts = cpal::available_hosts();
+  println!("Available hosts:\n  {:?}", available_hosts);
+
+  for host_id in available_hosts {
+      println!("{}", host_id.name());
+      let host = cpal::host_from_id(host_id)?;
+
+      let default_in = host.default_input_device().map(|e| e.name().unwrap());
+      let default_out = host.default_output_device().map(|e| e.name().unwrap());
+      println!("  Default Input Device:\n    {:?}", default_in);
+      println!("  Default Output Device:\n    {:?}", default_out);
+
+      let devices = host.devices()?;
+      println!("  Devices: ");
+      for (device_index, device) in devices.enumerate() {
+          println!("  {}. \"{}\"", device_index + 1, device.name()?);
+
+          // Input configs
+          if let Ok(conf) = device.default_input_config() {
+              println!("    Default input stream config:\n      {:?}", conf);
+          }
+          let input_configs = match device.supported_input_configs() {
+              Ok(f) => f.collect(),
+              Err(e) => {
+                  println!("    Error getting supported input configs: {:?}", e);
+                  Vec::new()
+              }
+          };
+          if !input_configs.is_empty() {
+              println!("    All supported input stream configs:");
+              for (config_index, config) in input_configs.into_iter().enumerate() {
+                  println!(
+                      "      {}.{}. {:?}",
+                      device_index + 1,
+                      config_index + 1,
+                      config
+                  );
+              }
+          }
+
+          // Output configs
+          if let Ok(conf) = device.default_output_config() {
+              println!("    Default output stream config:\n      {:?}", conf);
+          }
+          let output_configs = match device.supported_output_configs() {
+              Ok(f) => f.collect(),
+              Err(e) => {
+                  println!("    Error getting supported output configs: {:?}", e);
+                  Vec::new()
+              }
+          };
+          if !output_configs.is_empty() {
+              println!("    All supported output stream configs:");
+              for (config_index, config) in output_configs.into_iter().enumerate() {
+                  println!(
+                      "      {}.{}. {:?}",
+                      device_index + 1,
+                      config_index + 1,
+                      config
+                  );
+              }
+          }
+      }
+  }
+
+  Ok(())
 }
