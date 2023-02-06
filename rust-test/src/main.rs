@@ -154,9 +154,6 @@ fn listen_for_key_press(key: u32) -> bool {
 }
 fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: &mut KeyedInfoFile) {
   loop {
-    let duration = time::Duration::from_millis(50);
-    let now = time::Instant::now();
-    thread::sleep(duration);
     keyed_infos_file.is_cycle_forward_file_down = listen_for_key_press(0x60);
     keyed_infos_file.is_cycle_backward_file_down = listen_for_key_press(0x61);
     /*let is_numpad2_pressed = listen_for_key_press(0x62);
@@ -167,20 +164,58 @@ fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: 
     let is_numpad7_pressed = listen_for_key_press(0x67);
     let is_numpad8_pressed = listen_for_key_press(0x68);
     let is_numpad9_pressed = listen_for_key_press(0x69);*/
-    assert!(now.elapsed() >= duration);
     /*print!("\r                                                                                                                                                                        \r");
     print!("NUM 0: {:?}, NUM 1: {:?}, NUM 2: {:?}, NUM 3: {:?}, NUM 4: {:?}, NUM 5: {:?}, NUM 6: {:?}, NUM 7: {:?}, NUM 8: {:?}, NUM 9: {:?}",
     is_numpad0_pressed, is_numpad1_pressed, is_numpad2_pressed, is_numpad3_pressed, is_numpad4_pressed, is_numpad5_pressed, is_numpad6_pressed, is_numpad7_pressed, is_numpad8_pressed, is_numpad9_pressed);*/
-    if is_numpad0_pressed {
+    //
+    let mut temp_file_iter: i32 = *keyed_infos_file.snd_iter as i32;
+    let mut temp_folder_iter: i32 = *keyed_infos_folder.snd_dir_iter as i32;
+    //
+    if keyed_infos_file.is_cycle_forward_file_down && keyed_infos_file.is_cycle_forward_file_down != keyed_infos_file.prev_cycle_forward_file_down {
+      temp_file_iter += 1;
+      if temp_file_iter > keyed_infos_file.actual_audio_file_list_size.try_into().unwrap() {
+        temp_file_iter = 0;
+      }
+      *keyed_infos_file.snd_iter = temp_file_iter as usize;
       println!("{}", keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]);
       //cycle_sound_dir(keyed_infos_folder);
     }
+    if keyed_infos_file.is_cycle_backward_file_down && keyed_infos_file.is_cycle_backward_file_down != keyed_infos_file.prev_cycle_backward_file_down {
+      temp_file_iter -= 1;
+      if temp_file_iter < 0 {
+        temp_file_iter = keyed_infos_file.actual_audio_file_list_size as i32;
+      }
+      *keyed_infos_file.snd_iter = temp_file_iter as usize;
+      println!("{}", keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]);
+      //cycle_sound_dir(keyed_infos_folder);
+    }
+    //
+    if keyed_infos_folder.is_cycle_forward_dir_down && keyed_infos_folder.is_cycle_forward_dir_down != keyed_infos_folder.prev_cycle_forward_dir_down {
+      temp_folder_iter += 1;
+      if temp_folder_iter > keyed_infos_folder.actual_audio_dir_list_size.try_into().unwrap() {
+        temp_folder_iter = 0;
+      }
+      println!("{}", keyed_infos_folder.sound_dir_list[*keyed_infos_folder.snd_dir_iter]);
+      //cycle_sound_dir(keyed_infos_folder);
+    }
+    if keyed_infos_folder.is_cycle_backward_dir_down && keyed_infos_folder.is_cycle_backward_dir_down != keyed_infos_folder.prev_cycle_backward_dir_down {
+      temp_folder_iter -= 1;
+      if temp_folder_iter < 0 {
+        temp_folder_iter = keyed_infos_folder.actual_audio_dir_list_size as i32;
+      }
+      println!("{}", keyed_infos_folder.sound_dir_list[*keyed_infos_folder.snd_dir_iter]);
+      //cycle_sound_dir(keyed_infos_folder);
+    }
+    //
+    let duration = time::Duration::from_millis(50);
+    let now = time::Instant::now();
+    thread::sleep(duration);
+    assert!(now.elapsed() >= duration);
     //
     keyed_infos_file.prev_cycle_forward_file_down = keyed_infos_file.is_cycle_forward_file_down;
     keyed_infos_file.prev_cycle_backward_file_down = keyed_infos_file.is_cycle_backward_file_down;
     keyed_infos_folder.prev_cycle_forward_dir_down = keyed_infos_folder.is_cycle_forward_dir_down;
     keyed_infos_folder.prev_cycle_backward_dir_down = keyed_infos_folder.is_cycle_backward_dir_down;
-    
   }
 }
 fn configure_next_sound_dir(sound_dir: &str) {
