@@ -154,6 +154,7 @@ fn listen_for_key_press(key: u32) -> bool {
 }
 fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: &mut KeyedInfoFile) {
   loop {
+    let is_voice_pressed: bool = listen_for_key_press(0x12);
     keyed_infos_file.is_cycle_forward_file_down = listen_for_key_press(0x60);
     keyed_infos_file.is_cycle_backward_file_down = listen_for_key_press(0x61);
     /*let is_numpad2_pressed = listen_for_key_press(0x62);
@@ -169,7 +170,6 @@ fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: 
     is_numpad0_pressed, is_numpad1_pressed, is_numpad2_pressed, is_numpad3_pressed, is_numpad4_pressed, is_numpad5_pressed, is_numpad6_pressed, is_numpad7_pressed, is_numpad8_pressed, is_numpad9_pressed);*/
     //
     let mut temp_file_iter: i32 = *keyed_infos_file.snd_iter as i32;
-    let mut temp_folder_iter: i32 = *keyed_infos_folder.snd_dir_iter as i32;
     //
     if keyed_infos_file.is_cycle_forward_file_down && keyed_infos_file.is_cycle_forward_file_down != keyed_infos_file.prev_cycle_forward_file_down {
       temp_file_iter += 1;
@@ -190,21 +190,65 @@ fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: 
       //cycle_sound_dir(keyed_infos_folder);
     }
     //
+    let mut temp_folder_iter: i32 = *keyed_infos_folder.snd_dir_iter as i32;
+    //
     if keyed_infos_folder.is_cycle_forward_dir_down && keyed_infos_folder.is_cycle_forward_dir_down != keyed_infos_folder.prev_cycle_forward_dir_down {
       temp_folder_iter += 1;
       if temp_folder_iter > keyed_infos_folder.actual_audio_dir_list_size.try_into().unwrap() {
         temp_folder_iter = 0;
       }
-      println!("{}", keyed_infos_folder.sound_dir_list[*keyed_infos_folder.snd_dir_iter]);
-      //cycle_sound_dir(keyed_infos_folder);
+      //
+      let mut file_position_max: usize = 0;
+      let starting_dir = format!("{}{}", keyed_infos_folder.sound_dir_list[*keyed_infos_folder.snd_dir_iter], "/");
+      *keyed_infos_file.audio_file_list = list_files(starting_dir.as_str()).unwrap();
+      for file in &mut *keyed_infos_file.audio_file_list {
+        //println!("{}: {}", file_position_max, file);
+        file_position_max += 1;
+      }
+      println!("Count of files: {}", file_position_max);
+      for file in &mut *keyed_infos_file.audio_file_list {
+        println!("{}", file);
+      }
+      file_position_max -= 1;
+      keyed_infos_file.actual_audio_file_list_size = file_position_max;
+      *keyed_infos_file.snd_iter = 0;
+      *keyed_infos_folder.snd_dir_iter = temp_folder_iter as usize;
+      //println!("{}", keyed_infos_folder.sound_dir_list[*keyed_infos_folder.snd_dir_iter]);
+      println!("{}", keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]);
+      //
     }
     if keyed_infos_folder.is_cycle_backward_dir_down && keyed_infos_folder.is_cycle_backward_dir_down != keyed_infos_folder.prev_cycle_backward_dir_down {
       temp_folder_iter -= 1;
       if temp_folder_iter < 0 {
         temp_folder_iter = keyed_infos_folder.actual_audio_dir_list_size as i32;
       }
-      println!("{}", keyed_infos_folder.sound_dir_list[*keyed_infos_folder.snd_dir_iter]);
-      //cycle_sound_dir(keyed_infos_folder);
+      //
+      let mut file_position_max: usize = 0;
+      let starting_dir = format!("{}{}", keyed_infos_folder.sound_dir_list[*keyed_infos_folder.snd_dir_iter], "/");
+      *keyed_infos_file.audio_file_list = list_files(starting_dir.as_str()).unwrap();
+      for file in &mut *keyed_infos_file.audio_file_list {
+        //println!("{}: {}", file_position_max, file);
+        file_position_max += 1;
+      }
+      println!("Count of files: {}", file_position_max);
+      for file in &mut *keyed_infos_file.audio_file_list {
+        println!("{}", file);
+      }
+      file_position_max -= 1;
+      keyed_infos_file.actual_audio_file_list_size = file_position_max;
+      *keyed_infos_file.snd_iter = 0;
+      *keyed_infos_folder.snd_dir_iter = temp_folder_iter as usize;
+      //println!("{}", keyed_infos_folder.sound_dir_list[*keyed_infos_folder.snd_dir_iter]);
+      println!("{}", keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]);
+      //
+    }
+    if is_voice_pressed {
+      let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
+      let sink = rodio::Sink::try_new(&handle).unwrap();
+      //
+      let file = std::fs::File::open(&keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]).unwrap();
+      sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
+      sink.sleep_until_end();
     }
     //
     let duration = time::Duration::from_millis(50);
@@ -214,6 +258,7 @@ fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: 
     //
     keyed_infos_file.prev_cycle_forward_file_down = keyed_infos_file.is_cycle_forward_file_down;
     keyed_infos_file.prev_cycle_backward_file_down = keyed_infos_file.is_cycle_backward_file_down;
+    //
     keyed_infos_folder.prev_cycle_forward_dir_down = keyed_infos_folder.is_cycle_forward_dir_down;
     keyed_infos_folder.prev_cycle_backward_dir_down = keyed_infos_folder.is_cycle_backward_dir_down;
   }
@@ -236,6 +281,7 @@ fn main() {
   }
   println!("Count of folders: {}", folder_position_max);
   folder_position_max -= 1;
+  //
   let starting_dir = format!("{}{}", folders[folder_position], "/");
   let mut files = list_files(starting_dir.as_str()).unwrap();
   for file in &files {
@@ -244,6 +290,7 @@ fn main() {
   }
   println!("Count of files: {}", file_position_max);
   file_position_max -= 1;
+  //
   // TODO: change audio_file_list to sound_file_list
   let mut file_infos:KeyedInfoFile = KeyedInfoFile{snd_iter:&mut file_position,actual_audio_file_list_size:file_position_max,is_cycle_forward_file_down:false,is_cycle_backward_file_down:false,prev_cycle_forward_file_down:false,prev_cycle_backward_file_down:false,audio_file_list:&mut files};
   //
