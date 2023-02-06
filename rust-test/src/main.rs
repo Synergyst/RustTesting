@@ -8,8 +8,11 @@ use std::net::UdpSocket;
 use std::fs;
 use std::path::Path;
 use std::mem::MaybeUninit;
-use std::{thread, time};
+use std::{thread, time, time::Duration};
 use std::io::{BufReader, Sink};
+use miniaudio::{Context, Decoder, Device, DeviceConfig, DeviceType};
+use std::cell::RefCell;
+use std::sync::{Arc, Mutex};
 
 enum KeyInput {
   NextSound,
@@ -154,7 +157,7 @@ fn listen_for_key_press(key: u32) -> bool {
       key_state & 0x8000 != 0
   }
 }
-fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: &mut KeyedInfoFile, dev_infos: &mut DevInfo) {
+fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: &mut KeyedInfoFile, dev_infos: &mut DevInfo, dev: &mut Device) {
   loop {
     dev_infos.is_voice_down = listen_for_key_press(0x12);
     keyed_infos_file.is_cycle_forward_file_down = listen_for_key_press(0x60);
@@ -252,13 +255,11 @@ fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: 
     }
     if dev_infos.is_voice_down && dev_infos.prev_voice_down != dev_infos.is_voice_down {
       //
+      //play_audio_file(&keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]);
+      //thread::sleep(Duration::from_millis(500));
+      //let mut decoder = Decoder::from_file(&keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter], None).expect("failed to initialize decoder from file");
       //
-      /*let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
-      let sink = rodio::Sink::try_new(&handle).unwrap();
-      let file = std::fs::File::open(&keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]).unwrap();
-      sink.set_volume(0.15);
-      sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
-      sink.sleep_until_end();*/
+      //
     }
     //
     let duration = time::Duration::from_millis(50);
@@ -283,6 +284,16 @@ fn configure_next_sound_file(sound_file: &str) {
   print!("\n{}\n", sound_file);
 }
 fn main() {
+  let mut config = DeviceConfig::new(DeviceType::Playback);
+  config.playback_mut().set_format(miniaudio::Format::S16);
+  config.playback_mut().set_channels(2);
+  config.set_sample_rate(48000);
+  config.set_stop_callback(|_device| {
+    println!("Device Stopped.");
+  });
+  let mut device = Device::new(None, &config).expect("failed to open playback device");
+  //
+  //
   let mut folder_position: usize = 0;
   let mut folder_position_max: usize = 0;
   let mut file_position: usize = 0;
@@ -314,5 +325,25 @@ fn main() {
   //
   /*let result = enumerate_devices();
   println!("{:?}", result);*/
-  key_state_runner(&mut folder_infos, &mut file_infos, &mut dev_infos);
+  let context = Context::new(&[], None).expect("failed to create context");
+  context.with_devices(|playback_devices, capture_devices| {
+    println!("Playback Devices:");
+    for (idx, device) in playback_devices.iter().enumerate() {
+      println!("\t{}: {}", idx, device.name());
+    }
+    println!("Capture Devices:");
+    for (idx, device) in capture_devices.iter().enumerate() {
+      println!("\t{}: {}", idx, device.name());
+    }
+  }).expect("failed to get devices");
+  //
+  //
+  let mut decoder = Decoder::from_file(&file_infos.audio_file_list[*file_infos.snd_iter], None).expect("failed to initialize decoder from file");
+  device.set_data_callback(move |_device, output, _frames| {
+    decoder.read_pcm_frames(output);
+  });
+  //
+  device.start().expect("failed to start device");
+  //
+  key_state_runner(&mut folder_infos, &mut file_infos, &mut dev_infos, &mut device);
 }
