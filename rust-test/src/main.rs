@@ -269,7 +269,7 @@ fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: 
       let mut config = DeviceConfig::new(DeviceType::Playback);
       config.playback_mut().set_format(miniaudio::Format::S16);
       config.playback_mut().set_channels(2);
-      config.set_sample_rate(8000);
+      config.set_sample_rate(48000);
       //config.playback().set_device_id(dev_infos.dev_index_output);
       /*config.set_stop_callback(|_device| {
         println!("Device Stopped.");
@@ -288,7 +288,7 @@ fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: 
       }).expect("failed to get devices");
       //
       let mut preffered_dev_id: usize = 0;
-      let preffered_dev_name: String = "Line (2- MG-XU)".to_string();
+      let preffered_dev_name: String = "VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)".to_string();
       let dev_count = context.playback_device_count() as usize;
       let playback_devs = context.playback_devices();
       for idx in 0..dev_count {
