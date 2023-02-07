@@ -4,15 +4,17 @@
 #![allow(unused_assignments)]
 #![allow(overflowing_literals)]
 use winapi::um::winuser::GetAsyncKeyState;
+use windows::Win32::System::Com::IAddrExclusionControl;
 use std::net::UdpSocket;
 use std::fs;
 use std::path::Path;
 use std::mem::MaybeUninit;
 use std::{thread, time, time::Duration};
 use std::io::{BufReader, Sink};
-use miniaudio::{Context, Decoder, Device, DeviceConfig, DeviceType};
+use miniaudio::{Context, Decoder, Device, DeviceConfig, DeviceType, DeviceId, DecoderConfig, DeviceConfigPlayback, DeviceIdAndName};
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
+use once_cell::sync::Lazy;
 
 enum KeyInput {
   NextSound,
@@ -55,10 +57,15 @@ struct KeyedInfoFolder<'a> {
   sound_dir_list: &'a mut Vec<String>
 }
 struct DevInfo {
-  dev_index_output: i32,
-  dev_index_input: i32,
+  dev_index_output: usize,
+  dev_index_input: usize,
   is_voice_down: bool,
   prev_voice_down: bool,
+}
+
+struct PlaybackDevsInfo {
+  playback_devs_id: Vec<Option<DeviceId>>,
+  playback_devs_name: Vec<String>,
 }
 
 fn bar(n: usize, offset: OffSet) -> Option<usize> {
@@ -157,7 +164,7 @@ fn listen_for_key_press(key: u32) -> bool {
       key_state & 0x8000 != 0
   }
 }
-fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: &mut KeyedInfoFile, dev_infos: &mut DevInfo, dev: &mut Device) {
+fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: &mut KeyedInfoFile, dev_infos: &mut DevInfo) {
   loop {
     dev_infos.is_voice_down = listen_for_key_press(0x12);
     keyed_infos_file.is_cycle_forward_file_down = listen_for_key_press(0x60);
@@ -253,12 +260,68 @@ fn key_state_runner(keyed_infos_folder: &mut KeyedInfoFolder, keyed_infos_file: 
       //println!("{}", keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]);
       //
     }
-    if dev_infos.is_voice_down && dev_infos.prev_voice_down != dev_infos.is_voice_down {
+    while listen_for_key_press(0x12) && dev_infos.prev_voice_down != dev_infos.is_voice_down {
       //
       //play_audio_file(&keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]);
       //thread::sleep(Duration::from_millis(500));
       //let mut decoder = Decoder::from_file(&keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter], None).expect("failed to initialize decoder from file");
       //
+      let mut config = DeviceConfig::new(DeviceType::Playback);
+      config.playback_mut().set_format(miniaudio::Format::S16);
+      config.playback_mut().set_channels(2);
+      config.set_sample_rate(8000);
+      //config.playback().set_device_id(dev_infos.dev_index_output);
+      /*config.set_stop_callback(|_device| {
+        println!("Device Stopped.");
+      });*/
+      //
+      //
+      let mut dev_ids: Vec<Option<DeviceId>> = Vec::new();
+      let mut dev_names: Vec<String> = Vec::new();
+      let context = Context::new(&[], None).expect("failed to create context");
+      context.with_playback_devices(|playback_devices| {
+        /*println!("Playback Devices:");
+        for (idx, device) in playback_devices.iter().enumerate() {
+          println!("\t{}: {}", idx, device.name());
+          //if idx == dev_infos.dev_index_output
+        }*/
+      }).expect("failed to get devices");
+      //
+      let mut preffered_dev_id: usize = 0;
+      let preffered_dev_name: String = "Line (2- MG-XU)".to_string();
+      let dev_count = context.playback_device_count() as usize;
+      let playback_devs = context.playback_devices();
+      for idx in 0..dev_count {
+        dev_ids.push(Some(playback_devs[idx].id().clone()));
+        dev_names.push(playback_devs[idx].name().to_string());
+        if dev_names[idx] == preffered_dev_name {
+          preffered_dev_id = idx;
+        }
+        //println!("{}: {}", idx, dev_names[idx]);
+      }
+      let playback_devs_infos: PlaybackDevsInfo = PlaybackDevsInfo{playback_devs_id: dev_ids, playback_devs_name: dev_names};
+      //println!();
+      //
+      //
+      config.playback_mut().set_device_id(Some(playback_devs[preffered_dev_id].id().clone()));
+      //
+      let mut decoder = Decoder::from_file(&keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter], None).expect("failed to initialize decoder from file");
+      //
+      let mut device = Device::new(None, &config).expect("failed to open playback device");
+      //
+      device.set_data_callback(move |_device, output, _frames| {
+        decoder.read_pcm_frames(output);
+      });
+      //
+      device.start().expect("failed to start device");
+      //
+      //
+      while listen_for_key_press(0x12) {
+        let duration = time::Duration::from_millis(50);
+        let now = time::Instant::now();
+        thread::sleep(duration);
+        assert!(now.elapsed() >= duration);
+      }
       //
     }
     //
@@ -284,22 +347,14 @@ fn configure_next_sound_file(sound_file: &str) {
   print!("\n{}\n", sound_file);
 }
 fn main() {
-  let mut config = DeviceConfig::new(DeviceType::Playback);
-  config.playback_mut().set_format(miniaudio::Format::S16);
-  config.playback_mut().set_channels(2);
-  config.set_sample_rate(48000);
-  config.set_stop_callback(|_device| {
-    println!("Device Stopped.");
-  });
-  let mut device = Device::new(None, &config).expect("failed to open playback device");
   //
   //
   let mut folder_position: usize = 0;
   let mut folder_position_max: usize = 0;
   let mut file_position: usize = 0;
   let mut file_position_max: usize = 0;
-  let mut folders = list_folders("../synergyst-soundboard-util/sounds/").unwrap();
-  //let mut folders = list_folders("./sounds/").unwrap();
+  //let mut folders = list_folders("../synergyst-soundboard-util/sounds/").unwrap();
+  let mut folders = list_folders("./sounds/").unwrap();
   for folder in &folders {
     println!("{}: {}", folder_position_max, folder);
     folder_position_max += 1;
@@ -321,29 +376,24 @@ fn main() {
   //
   let mut folder_infos:KeyedInfoFolder = KeyedInfoFolder{snd_dir_iter:&mut folder_position,actual_audio_dir_list_size:folder_position_max,is_cycle_forward_dir_down:false,is_cycle_backward_dir_down:false,prev_cycle_forward_dir_down:false,prev_cycle_backward_dir_down:false,sound_dir_list:&mut folders};
   //
-  let mut dev_infos:DevInfo = DevInfo{dev_index_input:1,dev_index_output:1,is_voice_down:false,prev_voice_down:false};
-  //
-  /*let result = enumerate_devices();
-  println!("{:?}", result);*/
   let context = Context::new(&[], None).expect("failed to create context");
   context.with_devices(|playback_devices, capture_devices| {
     println!("Playback Devices:");
     for (idx, device) in playback_devices.iter().enumerate() {
       println!("\t{}: {}", idx, device.name());
     }
-    println!("Capture Devices:");
+    /*println!("Capture Devices:");
     for (idx, device) in capture_devices.iter().enumerate() {
       println!("\t{}: {}", idx, device.name());
-    }
+    }*/
   }).expect("failed to get devices");
+  //playbackInfo.
+  //
+  let mut dev_infos:DevInfo = DevInfo{dev_index_input:1,dev_index_output:1,is_voice_down:false,prev_voice_down:false};
+  //
+  /*let result = enumerate_devices();
+  println!("{:?}", result);*/
   //
   //
-  let mut decoder = Decoder::from_file(&file_infos.audio_file_list[*file_infos.snd_iter], None).expect("failed to initialize decoder from file");
-  device.set_data_callback(move |_device, output, _frames| {
-    decoder.read_pcm_frames(output);
-  });
-  //
-  device.start().expect("failed to start device");
-  //
-  key_state_runner(&mut folder_infos, &mut file_infos, &mut dev_infos, &mut device);
+  key_state_runner(&mut folder_infos, &mut file_infos, &mut dev_infos);
 }
