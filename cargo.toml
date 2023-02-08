@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "rust-test",
+    "soundboard",
     "server",
     "client",
+    "testing",
 ]
