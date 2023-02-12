@@ -15,19 +15,7 @@ use miniaudio::{Context, Decoder, Device, DeviceConfig, DeviceType, DeviceId, De
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
-use crossterm::{
-  event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-  execute,
-  terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
 use std::{error::Error, io};
-use tui::{
-  backend::{Backend, CrosstermBackend},
-  layout::{Constraint, Layout},
-  style::{Color, Modifier, Style},
-  widgets::{Block, Borders, Cell, Row, Table, TableState},
-  Frame, Terminal,
-};
 use std::env;
 use std::ffi::OsStr;
 static VERSION: &str = "Version 0.2";
