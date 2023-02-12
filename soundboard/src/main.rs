@@ -331,8 +331,8 @@ fn main() {
   let mut folder_position_max: usize = 0;
   let mut file_position: usize = 0;
   let mut file_position_max: usize = 0;
-  let mut folders = list_folders("../synergyst-soundboard-util/sounds/").unwrap();
-  //let mut folders = list_folders("./sounds/").unwrap();
+  //let mut folders = list_folders("../synergyst-soundboard-util/sounds/").unwrap();
+  let mut folders = list_folders("./sounds/").unwrap();
   for folder in &folders {
     println!("{}: {}", folder_position_max, folder);
     folder_position_max += 1;
@@ -405,7 +405,7 @@ fn main() {
     dev_names.push(playback_devs[idx].name().to_string());
     match user_input_enum {
       UserInput::UserInputName => {
-        println!("Comparing [{}] to [{}]", dev_names[idx], preffered_dev_name);
+        //println!("Comparing [{}] to [{}]", dev_names[idx], preffered_dev_name);
         if dev_names[idx] == preffered_dev_name {
           preffered_dev_id = idx;
           println!("Using [{}] (preffered device) at [{}] (index) by manual name input", preffered_dev_name, idx);
