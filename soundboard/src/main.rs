@@ -132,23 +132,28 @@ fn bar(n: usize, offset: OffSet) -> Option<usize> {
   }
 }
 fn hex_to_i32(hex: &str) -> i32 {
-  let without_prefix = hex.trim_start_matches("0x");
+  let binding = hex.to_lowercase();
+  let without_prefix = binding.trim_start_matches("0x");
   i32::from_str_radix(without_prefix, 16).unwrap()
 }
 fn hex_to_i16(hex: &str) -> i16 {
-  let without_prefix = hex.trim_start_matches("0x");
+  let binding = hex.to_lowercase();
+  let without_prefix = binding.trim_start_matches("0x");
   i16::from_str_radix(without_prefix, 16).unwrap()
 }
 fn hex_to_u32(hex: &str) -> u32 {
-  let without_prefix = hex.trim_start_matches("0x");
+  let binding = hex.to_lowercase();
+  let without_prefix = binding.trim_start_matches("0x");
   u32::from_str_radix(without_prefix, 16).unwrap()
 }
 fn hex_to_u8(hex: &str) -> u8 {
-  let without_prefix = hex.trim_start_matches("0x");
+  let binding = hex.to_lowercase();
+  let without_prefix = binding.trim_start_matches("0x");
   u8::from_str_radix(without_prefix, 16).unwrap()
 }
 fn hex_to_i64(hex: &str) -> i64 {
-  let without_prefix = hex.trim_start_matches("0x");
+  let binding = hex.to_lowercase();
+  let without_prefix = binding.trim_start_matches("0x");
   i64::from_str_radix(without_prefix, 16).unwrap()
 }
 /*fn cycle_sound_file(snd_iter: &mut i32, actual_audio_file_list_size: i32, is_cycle_forward_down: bool, is_cycle_backward_down: bool, prev_cycle_forward_down: bool, prev_cycle_backward_down: bool) {
@@ -353,7 +358,7 @@ fn main() {
   let voice_down_key_val_u8: u8 = hex_to_u8(&voice_down_key_val.to_string());
   let voice_down_key_val_u32: u32 = hex_to_u32(&voice_down_key_val.to_string());
   let voice_down_key_val_i16: i16 = hex_to_i16(&voice_down_key_val.to_string());
-  println!("Voice transmit keycode: WIN hex [{}], ASCII hex [{:#?}], char [{:?}]", &voice_down_key_val.to_string().trim_start_matches("0x"), voice_down_key_val_u8, voice_down_key_val_u8 as char);
+  println!("Voice transmit keycode: WIN hex [{}], ASCII hex [{:#?}], char [{:?}]", &voice_down_key_val.to_string().to_lowercase().trim_start_matches("0x"), voice_down_key_val_u8, voice_down_key_val_u8 as char);
   //
   let mut folder_position: usize = 0;
   let mut folder_position_max: usize = 0;
