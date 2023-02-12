@@ -10,9 +10,9 @@
 
 4. Reboot the computer so VoiceMeeter Banana and VB-Audio are fully setup
 
-5. Move `soundboard.bat` to the same directory with the `sounds` directory
+5. See `CUSTOM SOUNDS/LIBRARY SECTION` for layout/sound library instructions
 
-6. 
+6. Once you have some sounds for the soundboard (and have possibly changed some settings in `soundboard.bat`), double-click `soundboard.bat` and enjoy!
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ DEFAULT KEY BIND SECTION ~
