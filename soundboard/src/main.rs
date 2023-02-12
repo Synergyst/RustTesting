@@ -72,6 +72,33 @@ struct PlaybackDevsInfo {
   playback_devs_id: Vec<Option<DeviceId>>,
   playback_devs_name: Vec<String>,
 }
+fn prog() -> Option<String> {
+  env::args().next()
+    .as_ref()
+    .map(Path::new)
+    .and_then(Path::file_name)
+    .and_then(OsStr::to_str)
+    .map(String::from)
+}
+fn help() {
+  let prog_name: String = prog().unwrap_or_default();
+  println!("{} {}
+  Usage:
+  \t{}
+  \t\t- Runs the program with system default playback device
+  \t{} -h, --help
+  \t\t- shows this help message
+  \t{} --version
+  \t\t- shows the program version
+  \t{} -s, --sounds <sounds directory>
+  \t\t- the directory containing the sound libraries (default: sounds)
+  \t{} -n, --name <playback device name>
+  \t\t- preferred playback device name
+  \t{} -i, --id <playback device ID>
+  \t\t- preferred playback device ID
+  \t{} -t, --voice <Windows hex keycode>
+  \t\t- voice transmit keycode. Choose 'hexadecimal' values from: https://nehe.gamedev.net/article/msdn_virtualkey_codes/15009/\n", prog_name, VERSION, prog_name, prog_name, prog_name, prog_name, prog_name, prog_name, prog_name);
+}
 fn bar(n: usize, offset: OffSet) -> Option<usize> {
   match offset {
       OffSet::Pos(offset) => n.checked_add(offset),
@@ -137,34 +164,7 @@ fn listen_for_key_press(key: u32) -> bool {
       key_state & 0x8000 != 0
   }
 }
-fn prog() -> Option<String> {
-  env::args().next()
-    .as_ref()
-    .map(Path::new)
-    .and_then(Path::file_name)
-    .and_then(OsStr::to_str)
-    .map(String::from)
-}
-fn help() {
-  let prog_name: String = prog().unwrap_or_default();
-  println!("{} {}", prog_name, VERSION);
-  print!("
-  Usage:
-  \t{}
-  \t\t- Runs the program with system default playback device
-  \t{} -h, --help
-  \t\t- shows this help message
-  \t{} --version
-  \t\t- shows the program version
-  \t{} -s, --sounds
-  \t\t- the directory containing the sound libraries (default: ./sounds)
-  \t{} -n, --name
-  \t\t- preferred playback device name
-  \t{} -i, --id
-  \t\t- preferred playback device ID
-  \t{} -t, --voice
-  \t\t- voice transmit keycode. Choose 'hexadecimal' values from: https://nehe.gamedev.net/article/msdn_virtualkey_codes/15009/\n", prog_name, prog_name, prog_name, prog_name, prog_name, prog_name, prog_name);
-}
+
 fn main() {
   let mut user_input_enum:UserInput = UserInput::NoUserInput;
   let mut dev_infos:DevInfo = DevInfo{dev_index_input:0,dev_index_output:0,is_voice_down:false,prev_voice_down:false};
