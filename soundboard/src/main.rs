@@ -258,10 +258,10 @@ fn help() {
 fn main() {
   let mut user_input_enum:UserInput = UserInput::NoUserInput;
   let mut dev_infos:DevInfo = DevInfo{dev_index_input:0,dev_index_output:0,is_voice_down:false,prev_voice_down:false};
-  let mut preffered_dev_name: String = "./sounds/".to_string();
+  let mut preffered_dev_name: String = "".to_string();
   let mut voice_down_key_val: u32 = 0x12;
   //
-  let mut sound_dir_basename: String = "".to_string();
+  let mut sound_dir_basename: String = "./sounds/".to_string();
   //
   let mut cli_config: String;
   let mut args = env::args().skip(1);
@@ -344,8 +344,6 @@ fn main() {
   let mut folder_position_max: usize = 0;
   let mut file_position: usize = 0;
   let mut file_position_max: usize = 0;
-  //let mut folders = list_folders("../synergyst-soundboard-util/sounds/").unwrap();
-  //let mut folders = list_folders("./sounds/").unwrap();
   let mut folders = list_folders(&sound_dir_basename).unwrap();
   for folder in &folders {
     println!("{}: {}", folder_position_max, folder);
@@ -491,11 +489,14 @@ fn main() {
       file_infos.actual_audio_file_list_size = file_position_max;
       *file_infos.snd_iter = 0;
       *folder_infos.snd_dir_iter = temp_folder_iter as usize;
+      let mut temp_iter = 0;
       for file in &mut *file_infos.audio_file_list {
-        println!("[{}] -> [{}]", *folder_infos.snd_dir_iter, file);
+        println!("[{}] -> [{}]", temp_iter, file);
+        temp_iter += 1;
       }
       //println!("{}", folder_infos.sound_dir_list[*folder_infos.snd_dir_iter]);
       //println!("{}", keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]);
+      println!("");
       //
     }
     if folder_infos.is_cycle_backward_dir_down && folder_infos.is_cycle_backward_dir_down != folder_infos.prev_cycle_backward_dir_down {
@@ -515,11 +516,14 @@ fn main() {
       file_infos.actual_audio_file_list_size = file_position_max;
       *file_infos.snd_iter = 0;
       *folder_infos.snd_dir_iter = temp_folder_iter as usize;
+      let mut temp_iter = 0;
       for file in &mut *file_infos.audio_file_list {
-        println!("[{}] -> [{}]", *folder_infos.snd_dir_iter, file);
+        println!("[{}] -> [{}]", temp_iter, file);
+        temp_iter += 1;
       }
       //println!("{}", folder_infos.sound_dir_list[*folder_infos.snd_dir_iter]);
       //println!("{}", keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]);
+      println!("");
       //
     }
     while listen_for_key_press(0x12) && dev_infos.prev_voice_down != dev_infos.is_voice_down {
