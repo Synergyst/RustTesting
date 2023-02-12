@@ -28,6 +28,7 @@ use tui::{
   widgets::{Block, Borders, Cell, Row, Table, TableState},
   Frame, Terminal,
 };
+use std::env;
 struct App<'a> {
   state: TableState,
   items: Vec<Vec<&'a str>>,
@@ -85,6 +86,11 @@ enum KeyInput {
   PitchDown,
   VolumeUp,
   VolumeDown,
+}
+enum UserInput {
+  UserInputName,
+  UserInputId,
+  NoUserInput,
 }
 enum OffSet {
   Neg(usize),
@@ -221,7 +227,7 @@ fn configure_next_sound_file(sound_file: &str) {
   print!("\n{}\n", sound_file);
 }
 fn main() {
-  //
+  let args: Vec<_> = env::args().collect();
   //
   let mut folder_position: usize = 0;
   let mut folder_position_max: usize = 0;
@@ -247,27 +253,11 @@ fn main() {
   //
   // TODO: change audio_file_list to sound_file_list
   let mut file_infos:KeyedInfoFile = KeyedInfoFile{snd_iter:&mut file_position,actual_audio_file_list_size:file_position_max,is_cycle_forward_file_down:false,is_cycle_backward_file_down:false,prev_cycle_forward_file_down:false,prev_cycle_backward_file_down:false,audio_file_list:&mut files};
-  //
   let mut folder_infos:KeyedInfoFolder = KeyedInfoFolder{snd_dir_iter:&mut folder_position,actual_audio_dir_list_size:folder_position_max,is_cycle_forward_dir_down:false,is_cycle_backward_dir_down:false,prev_cycle_forward_dir_down:false,prev_cycle_backward_dir_down:false,sound_dir_list:&mut folders};
-  //
-  let context = Context::new(&[], None).expect("failed to create context");
-  context.with_devices(|playback_devices, capture_devices| {
-    println!("Playback Devices:");
-    for (idx, device) in playback_devices.iter().enumerate() {
-      println!("\t{}: {}", idx, device.name());
-    }
-    /*println!("Capture Devices:");
-    for (idx, device) in capture_devices.iter().enumerate() {
-      println!("\t{}: {}", idx, device.name());
-    }*/
-  }).expect("failed to get devices");
-  //playbackInfo.
-  //
   let mut dev_infos:DevInfo = DevInfo{dev_index_input:0,dev_index_output:0,is_voice_down:false,prev_voice_down:false};
   //
   /*let result = enumerate_devices();
   println!("{:?}", result);*/
-  //
   //
   // setup terminal
   /*enable_raw_mode()?;
@@ -289,6 +279,59 @@ fn main() {
   if let Err(err) = res {
     println!("{:?}", err)
   }*/
+  //
+  let mut config = DeviceConfig::new(DeviceType::Playback);
+  config.playback_mut().set_format(miniaudio::Format::S16);
+  config.playback_mut().set_channels(2);
+  config.set_sample_rate(48000);
+  //
+  let mut dev_ids: Vec<Option<DeviceId>> = Vec::new();
+  let mut dev_names: Vec<String> = Vec::new();
+  let context = Context::new(&[], None).expect("failed to create context");
+  context.with_playback_devices(|playback_devices| {
+    println!("Playback Devices:");
+    for (idx, device) in playback_devices.iter().enumerate() {
+      println!("\t{}: [{}]", idx, device.name());
+      //if idx == dev_infos.dev_index_output
+    }
+    /*println!("Capture Devices:");
+    for (idx, device) in capture_devices.iter().enumerate() {
+      println!("\t{}: {}", idx, device.name());
+    }*/
+  }).expect("failed to get devices");
+  let mut preffered_dev_id: usize = 0;
+  let preffered_dev_name: String = "VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)".to_string();
+  let dev_count = context.playback_device_count() as usize;
+  let playback_devs = context.playback_devices();
+  //
+  let user_input_enum:UserInput = UserInput::NoUserInput;
+  //
+  for idx in 0..dev_count {
+    dev_ids.push(Some(playback_devs[idx].id().clone()));
+    dev_names.push(playback_devs[idx].name().to_string());
+    match user_input_enum {
+      UserInput::UserInputName => {
+        if dev_names[idx] == preffered_dev_name {
+          preffered_dev_id = idx;
+          println!("Using [{}] (preffered device) at [{}] (index) by manual name input", preffered_dev_name, idx);
+          break;
+        }
+      },
+      UserInput::UserInputId => {
+        if idx == dev_infos.dev_index_input {
+          preffered_dev_id = idx;
+          println!("Using [{}] (preffered device) at [{}] (index) by manual index input", preffered_dev_name, idx);
+          break;
+        }
+      },
+      UserInput::NoUserInput => {
+        println!("No preffered device selected, using system default playback device");
+        break;
+      }
+    }
+  }
+  let playback_devs_infos: PlaybackDevsInfo = PlaybackDevsInfo{playback_devs_id: dev_ids, playback_devs_name: dev_names};
+  config.playback_mut().set_device_id(Some(playback_devs[preffered_dev_id].id().clone()));
   //
   loop {
     dev_infos.is_voice_down = listen_for_key_press(0x12);
@@ -371,61 +414,12 @@ fn main() {
       //
     }
     while listen_for_key_press(0x12) && dev_infos.prev_voice_down != dev_infos.is_voice_down {
-      //
-      //play_audio_file(&keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter]);
-      //thread::sleep(Duration::from_millis(500));
-      //let mut decoder = Decoder::from_file(&keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter], None).expect("failed to initialize decoder from file");
-      //
-      let mut config = DeviceConfig::new(DeviceType::Playback);
-      config.playback_mut().set_format(miniaudio::Format::S16);
-      config.playback_mut().set_channels(2);
-      config.set_sample_rate(48000);
-      //config.playback().set_device_id(dev_infos.dev_index_output);
-      /*config.set_stop_callback(|_device| {
-        println!("Device Stopped.");
-      });*/
-      //
-      //
-      let mut dev_ids: Vec<Option<DeviceId>> = Vec::new();
-      let mut dev_names: Vec<String> = Vec::new();
-      let context = Context::new(&[], None).expect("failed to create context");
-      context.with_playback_devices(|playback_devices| {
-        /*println!("Playback Devices:");
-        for (idx, device) in playback_devices.iter().enumerate() {
-          println!("\t{}: {}", idx, device.name());
-          //if idx == dev_infos.dev_index_output
-        }*/
-      }).expect("failed to get devices");
-      //
-      let mut preffered_dev_id: usize = 0;
-      let preffered_dev_name: String = "VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)".to_string();
-      let dev_count = context.playback_device_count() as usize;
-      let playback_devs = context.playback_devices();
-      for idx in 0..dev_count {
-        dev_ids.push(Some(playback_devs[idx].id().clone()));
-        dev_names.push(playback_devs[idx].name().to_string());
-        if dev_names[idx] == preffered_dev_name {
-          preffered_dev_id = idx;
-          break;
-        }
-        //println!("{}: {}", idx, dev_names[idx]);
-      }
-      let playback_devs_infos: PlaybackDevsInfo = PlaybackDevsInfo{playback_devs_id: dev_ids, playback_devs_name: dev_names};
-      //println!();
-      //
-      //
-      config.playback_mut().set_device_id(Some(playback_devs[preffered_dev_id].id().clone()));
-      //
       let mut decoder = Decoder::from_file(&file_infos.audio_file_list[*file_infos.snd_iter], None).expect("failed to initialize decoder from file");
-      //
       let mut device = Device::new(None, &config).expect("failed to open playback device");
-      //
       device.set_data_callback(move |_device, output, _frames| {
         decoder.read_pcm_frames(output);
       });
-      //
       device.start().expect("failed to start device");
-      //
       //
       while listen_for_key_press(0x12) {
         let duration = time::Duration::from_millis(1);
