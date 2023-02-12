@@ -135,6 +135,18 @@ fn hex_to_i32(hex: &str) -> i32 {
   let without_prefix = hex.trim_start_matches("0x");
   i32::from_str_radix(without_prefix, 16).unwrap()
 }
+fn hex_to_i16(hex: &str) -> i16 {
+  let without_prefix = hex.trim_start_matches("0x");
+  i16::from_str_radix(without_prefix, 16).unwrap()
+}
+fn hex_to_u32(hex: &str) -> u32 {
+  let without_prefix = hex.trim_start_matches("0x");
+  u32::from_str_radix(without_prefix, 16).unwrap()
+}
+fn hex_to_u8(hex: &str) -> u8 {
+  let without_prefix = hex.trim_start_matches("0x");
+  u8::from_str_radix(without_prefix, 16).unwrap()
+}
 fn hex_to_i64(hex: &str) -> i64 {
   let without_prefix = hex.trim_start_matches("0x");
   i64::from_str_radix(without_prefix, 16).unwrap()
@@ -259,7 +271,7 @@ fn main() {
   let mut user_input_enum:UserInput = UserInput::NoUserInput;
   let mut dev_infos:DevInfo = DevInfo{dev_index_input:0,dev_index_output:0,is_voice_down:false,prev_voice_down:false};
   let mut preffered_dev_name: String = "".to_string();
-  let mut voice_down_key_val: u32 = 0x12;
+  let mut voice_down_key_val: String = "0x12".to_string();
   //
   let mut sound_dir_basename: String = "./sounds/".to_string();
   //
@@ -300,7 +312,8 @@ fn main() {
       "-t" | "--voice" => {
         if let Some(arg_config) = args.next() {
           cli_config = arg_config;
-          voice_down_key_val = cli_config.parse::<u32>().unwrap();
+          //voice_down_key_val = cli_config.parse::<u32>().unwrap();
+          voice_down_key_val = cli_config;
         } else {
           panic!("No value specified for parameter: --voice");
         }
@@ -337,8 +350,10 @@ fn main() {
     }
   }
   //
-  let voice_down_key_val_u8: u8 = hex_to_i32(&voice_down_key_val.to_string()) as u8;
-  println!("Voice transmit keycode: WIN hex [{}], ASCII hex [{:#?}], char [{}]", voice_down_key_val, voice_down_key_val_u8, voice_down_key_val_u8 as char);
+  let voice_down_key_val_u8: u8 = hex_to_u8(&voice_down_key_val.to_string());
+  let voice_down_key_val_u32: u32 = hex_to_u32(&voice_down_key_val.to_string());
+  let voice_down_key_val_i16: i16 = hex_to_i16(&voice_down_key_val.to_string());
+  println!("Voice transmit keycode: WIN hex [{}], ASCII hex [{:#?}], char [{:?}]", &voice_down_key_val.to_string().trim_start_matches("0x"), voice_down_key_val_u8, voice_down_key_val_u8 as char);
   //
   let mut folder_position: usize = 0;
   let mut folder_position_max: usize = 0;
@@ -441,7 +456,7 @@ fn main() {
   config.playback_mut().set_device_id(Some(playback_devs[preffered_dev_id].id().clone()));
   //
   loop {
-    dev_infos.is_voice_down = listen_for_key_press(voice_down_key_val);
+    dev_infos.is_voice_down = listen_for_key_press(hex_to_u32(&voice_down_key_val.to_string()));
     file_infos.is_cycle_forward_file_down = listen_for_key_press(0x60);
     file_infos.is_cycle_backward_file_down = listen_for_key_press(0x61);
     folder_infos.is_cycle_backward_dir_down = listen_for_key_press(0x64);
@@ -526,7 +541,7 @@ fn main() {
       println!("");
       //
     }
-    while listen_for_key_press(0x12) && dev_infos.prev_voice_down != dev_infos.is_voice_down {
+    while listen_for_key_press(hex_to_u32(&voice_down_key_val.to_string())) && dev_infos.prev_voice_down != dev_infos.is_voice_down {
       let mut decoder = Decoder::from_file(&file_infos.audio_file_list[*file_infos.snd_iter], None).expect("failed to initialize decoder from file");
       let mut device = Device::new(None, &config).expect("failed to open playback device");
       device.set_data_callback(move |_device, output, _frames| {
@@ -534,7 +549,7 @@ fn main() {
       });
       device.start().expect("failed to start device");
       //
-      while listen_for_key_press(0x12) {
+      while listen_for_key_press(hex_to_u32(&voice_down_key_val.to_string())) {
         let duration = time::Duration::from_millis(1);
         let now = time::Instant::now();
         thread::sleep(duration);
