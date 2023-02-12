@@ -36,15 +36,25 @@ Numpad 0: cycle sound forward
 
 By default the soundboard does not have any MP3's included.
 The soundboard will need a file/folder structure like so before you can start it/fully utilize it:
+
 `soundboard.exe`
+
 `sounds\`
+
 `sounds\downloaded-unsorted\`
+
 `sounds\librarynamehere\`
+
 `sounds\anotherlibrarynamehere\`
+
 `sounds\librarynamehere\soundfile.mp3`
+
 `sounds\librarynamehere\anothersoundfile.mp3`
+
 `sounds\anotherlibrarynamehere\soundfile.mp3`
+
 `sounds\anotherlibrarynamehere\anothersoundfile.mp3`
+
 `...`
 
 For YouTubeDLP support you can rename `SoundboardREADME\` to `YouTubeDLP` and place it in the same directory with `soundboard.exe` (optionally move this `README.md` file to the same directory with `soundboard.exe` for ease of access)
