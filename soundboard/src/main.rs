@@ -29,6 +29,8 @@ use tui::{
   Frame, Terminal,
 };
 use std::env;
+use std::ffi::OsStr;
+static VERSION: &str = "Version 0.1";
 struct App<'a> {
   state: TableState,
   items: Vec<Vec<&'a str>>,
@@ -70,7 +72,6 @@ impl<'a> App<'a> {
     self.state.select(Some(i));
   }
 }
-
 enum KeyInput {
   NextSound,
   PrevSound,
@@ -226,8 +227,91 @@ fn configure_next_sound_dir(sound_dir: &str) {
 fn configure_next_sound_file(sound_file: &str) {
   print!("\n{}\n", sound_file);
 }
+fn prog() -> Option<String> {
+  env::args().next()
+    .as_ref()
+    .map(Path::new)
+    .and_then(Path::file_name)
+    .and_then(OsStr::to_str)
+    .map(String::from)
+}
+fn help() {
+  let prog_name: String = prog().unwrap_or_default();
+  println!("{} {}", prog_name, VERSION);
+  print!("
+  Usage:
+  \t{}
+  \t\t- Runs the program with system default playback device
+  \t{} -h, --help
+  \t\t- Shows this help message
+  \t{} --version
+  \t\t- Shows the program version
+  \t{} -n, --name
+  \t\t- Runs the program with preferred playback device name
+  \t{} -i, --id
+  \t\t- Runs the program with preferred playback device ID\n", prog_name, prog_name, prog_name, prog_name, prog_name);
+}
 fn main() {
-  let args: Vec<_> = env::args().collect();
+  let mut user_input_enum:UserInput = UserInput::NoUserInput;
+  let mut dev_infos:DevInfo = DevInfo{dev_index_input:0,dev_index_output:0,is_voice_down:false,prev_voice_down:false};
+  let mut preffered_dev_name: String = "".to_string();
+  //
+  let mut cli_config: String;
+  let mut args = env::args().skip(1);
+  while let Some(arg) = args.next() {
+    match &arg[..] {
+      "-h" | "--help" => {
+        help();
+        return;
+      }
+      "--version" => {
+        println!("{} {}", prog().unwrap_or_default(), VERSION);
+        return;
+      }
+      "-n" | "--name" => {
+        if let Some(arg_config) = args.next() {
+          cli_config = arg_config;
+          user_input_enum = UserInput::UserInputName;
+          preffered_dev_name = cli_config;
+          //let preffered_dev_name: String = "VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)".to_string();
+          println!("Will look for preffered device name of: [{}]", preffered_dev_name);
+        } else {
+          panic!("No value specified for parameter: --name");
+        }
+      }
+      "-i" | "--id" => {
+        if let Some(arg_config) = args.next() {
+          cli_config = arg_config;
+          let id_num = cli_config.parse::<usize>().unwrap();
+          user_input_enum = UserInput::UserInputId;
+          dev_infos.dev_index_output = id_num;
+          println!("Will look for preffered device ID of: [{}]", id_num);
+        } else {
+          panic!("No value specified for parameter: --id");
+        }
+      }
+      /*"-q" | "--quiet" => {
+        println!("Quiet mode is not supported yet.");
+      }
+      "-v" | "--verbose" => {
+        println!("Verbose mode is not supported yet.");
+      }
+      "-c" | "--config" => {
+        if let Some(arg_config) = args.next() {
+          cli_config = arg_config;
+        } else {
+          panic!("No value specified for parameter: --config");
+        }
+      }*/
+      _ => {
+        if arg.starts_with('-') {
+          println!("Unkown argument {}", arg);
+        } else {
+          println!("Unkown positional argument {}", arg);
+        }
+      }
+    }
+  }
   //
   let mut folder_position: usize = 0;
   let mut folder_position_max: usize = 0;
@@ -254,7 +338,6 @@ fn main() {
   // TODO: change audio_file_list to sound_file_list
   let mut file_infos:KeyedInfoFile = KeyedInfoFile{snd_iter:&mut file_position,actual_audio_file_list_size:file_position_max,is_cycle_forward_file_down:false,is_cycle_backward_file_down:false,prev_cycle_forward_file_down:false,prev_cycle_backward_file_down:false,audio_file_list:&mut files};
   let mut folder_infos:KeyedInfoFolder = KeyedInfoFolder{snd_dir_iter:&mut folder_position,actual_audio_dir_list_size:folder_position_max,is_cycle_forward_dir_down:false,is_cycle_backward_dir_down:false,prev_cycle_forward_dir_down:false,prev_cycle_backward_dir_down:false,sound_dir_list:&mut folders};
-  let mut dev_infos:DevInfo = DevInfo{dev_index_input:0,dev_index_output:0,is_voice_down:false,prev_voice_down:false};
   //
   /*let result = enumerate_devices();
   println!("{:?}", result);*/
@@ -300,17 +383,15 @@ fn main() {
     }*/
   }).expect("failed to get devices");
   let mut preffered_dev_id: usize = 0;
-  let preffered_dev_name: String = "VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)".to_string();
   let dev_count = context.playback_device_count() as usize;
   let playback_devs = context.playback_devices();
-  //
-  let user_input_enum:UserInput = UserInput::NoUserInput;
   //
   for idx in 0..dev_count {
     dev_ids.push(Some(playback_devs[idx].id().clone()));
     dev_names.push(playback_devs[idx].name().to_string());
     match user_input_enum {
       UserInput::UserInputName => {
+        println!("Comparing [{}] to [{}]", dev_names[idx], preffered_dev_name);
         if dev_names[idx] == preffered_dev_name {
           preffered_dev_id = idx;
           println!("Using [{}] (preffered device) at [{}] (index) by manual name input", preffered_dev_name, idx);
@@ -318,9 +399,9 @@ fn main() {
         }
       },
       UserInput::UserInputId => {
-        if idx == dev_infos.dev_index_input {
+        if idx == dev_infos.dev_index_output {
           preffered_dev_id = idx;
-          println!("Using [{}] (preffered device) at [{}] (index) by manual index input", preffered_dev_name, idx);
+          println!("Using [{}] (preffered device) at [{}] (index) by manual index input", dev_names[dev_infos.dev_index_output], idx);
           break;
         }
       },
