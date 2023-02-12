@@ -103,48 +103,6 @@ fn hex_to_i64(hex: &str) -> i64 {
   let without_prefix = binding.trim_start_matches("0x");
   i64::from_str_radix(without_prefix, 16).unwrap()
 }
-/*fn cycle_sound_file(snd_iter: &mut i32, actual_audio_file_list_size: i32, is_cycle_forward_down: bool, is_cycle_backward_down: bool, prev_cycle_forward_down: bool, prev_cycle_backward_down: bool) {
-  if is_cycle_forward_down && is_cycle_forward_down != prev_cycle_forward_down || is_cycle_backward_down && is_cycle_backward_down != prev_cycle_backward_down {
-    if is_cycle_forward_down && is_cycle_forward_down != prev_cycle_forward_down {
-      *snd_iter = (*snd_iter + 1) % (actual_audio_file_list_size);
-    } else {
-      *snd_iter = (*snd_iter + actual_audio_file_list_size) % (actual_audio_file_list_size + 1);
-    }
-    configure_next_sound_file(audio_file_list[*snd_iter]);
-  }
-}*/
-fn cycle_sound_file(keyed_infos_file: &mut KeyedInfoFile) {
-  if keyed_infos_file.is_cycle_forward_file_down && keyed_infos_file.is_cycle_forward_file_down != keyed_infos_file.prev_cycle_forward_file_down || keyed_infos_file.is_cycle_backward_file_down && keyed_infos_file.is_cycle_backward_file_down != keyed_infos_file.prev_cycle_backward_file_down {
-    *keyed_infos_file.snd_iter = (*keyed_infos_file.snd_iter as isize + if keyed_infos_file.is_cycle_forward_file_down { 1 } else { -1 }) as usize % keyed_infos_file.actual_audio_file_list_size;
-    // CHANGEME?
-    /*if *keyed_infos_file.snd_iter < 0 {
-      *keyed_infos_file.snd_iter += keyed_infos_file.actual_audio_file_list_size;
-    }*/
-    configure_next_sound_file(&keyed_infos_file.audio_file_list[*keyed_infos_file.snd_iter as usize]);
-  }
-}
-fn cycle_sound_dir(keyed_infos_folder: &mut KeyedInfoFolder) {
-  if keyed_infos_folder.is_cycle_forward_dir_down && keyed_infos_folder.is_cycle_forward_dir_down != keyed_infos_folder.prev_cycle_forward_dir_down || keyed_infos_folder.is_cycle_backward_dir_down && keyed_infos_folder.is_cycle_backward_dir_down != keyed_infos_folder.prev_cycle_backward_dir_down {
-    *keyed_infos_folder.snd_dir_iter = (*keyed_infos_folder.snd_dir_iter as isize + if keyed_infos_folder.is_cycle_forward_dir_down { 1 } else { -1 }) as usize;
-    if *keyed_infos_folder.snd_dir_iter >= keyed_infos_folder.actual_audio_dir_list_size {
-      *keyed_infos_folder.snd_dir_iter = 0;
-    } else {
-      *keyed_infos_folder.snd_dir_iter = keyed_infos_folder.actual_audio_dir_list_size - 1;
-    }
-    configure_next_sound_dir(&keyed_infos_folder.sound_dir_list[*keyed_infos_folder.snd_dir_iter]);
-  }
-}
-/*fn cycle_sound_library(snd_dir_iter: &mut isize, actual_audio_dir_list_size: isize, is_cycle_forward_dir_down: bool, is_cycle_backward_dir_down: bool, prev_cycle_forward_dir_down: bool, prev_cycle_backward_dir_down: bool, sound_dir_list: &mut Vec<String>) {
-  if is_cycle_forward_dir_down && is_cycle_forward_dir_down != prev_cycle_forward_dir_down || is_cycle_backward_dir_down && prev_cycle_backward_dir_down != prev_cycle_backward_dir_down {
-    *snd_dir_iter = *snd_dir_iter + if is_cycle_forward_dir_down { 1 } else { -1 };
-    if *snd_dir_iter < 0 {
-      *snd_dir_iter = actual_audio_dir_list_size;
-    } else if *snd_dir_iter > actual_audio_dir_list_size {
-      *snd_dir_iter = 0;
-    }
-    configure_next_sound_dir(sound_dir_list[snd_dir_iter]);
-  }
-}*/
 fn get_key_state(r: KeyInput) -> bool {
   match r {
     KeyInput::NextSound | KeyInput::PrevSound => true,
@@ -173,23 +131,11 @@ fn list_folders(dir: &str) -> Result<Vec<String>, std::io::Error> {
   }
   Ok(dirs)
 }
-/*fn modify_folders(folders: &mut Vec<String>) {
-  // modify the `folders` value as needed
-}
-fn modify_files(files: &mut Vec<String>) {
-  // modify the `files` value as needed
-}*/
 fn listen_for_key_press(key: u32) -> bool {
   unsafe {
       let key_state = GetAsyncKeyState(key as i32);
       key_state & 0x8000 != 0
   }
-}
-fn configure_next_sound_dir(sound_dir: &str) {
-  print!("\n{:?}\n", sound_dir);
-}
-fn configure_next_sound_file(sound_file: &str) {
-  print!("\n{}\n", sound_file);
 }
 fn prog() -> Option<String> {
   env::args().next()
@@ -224,7 +170,6 @@ fn main() {
   let mut dev_infos:DevInfo = DevInfo{dev_index_input:0,dev_index_output:0,is_voice_down:false,prev_voice_down:false};
   let mut preffered_dev_name: String = "".to_string();
   let mut voice_down_key_val: String = "0x12".to_string();
-  //
   let mut sound_dir_basename: String = "./sounds/".to_string();
   //
   let mut cli_config: String;
