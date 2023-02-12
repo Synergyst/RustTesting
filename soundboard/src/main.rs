@@ -243,21 +243,25 @@ fn help() {
   \t{}
   \t\t- Runs the program with system default playback device
   \t{} -h, --help
-  \t\t- Shows this help message
+  \t\t- shows this help message
   \t{} --version
-  \t\t- Shows the program version
+  \t\t- shows the program version
+  \t{} -s, --sounds
+  \t\t- the directory containing the sound libraries (default: ./sounds)
   \t{} -n, --name
   \t\t- preferred playback device name
   \t{} -i, --id
   \t\t- preferred playback device ID
   \t{} -t, --voice
-  \t\t- voice transmit keycode. Choose 'hexadecimal' values from: https://nehe.gamedev.net/article/msdn_virtualkey_codes/15009/\n", prog_name, prog_name, prog_name, prog_name, prog_name, prog_name);
+  \t\t- voice transmit keycode. Choose 'hexadecimal' values from: https://nehe.gamedev.net/article/msdn_virtualkey_codes/15009/\n", prog_name, prog_name, prog_name, prog_name, prog_name, prog_name, prog_name);
 }
 fn main() {
   let mut user_input_enum:UserInput = UserInput::NoUserInput;
   let mut dev_infos:DevInfo = DevInfo{dev_index_input:0,dev_index_output:0,is_voice_down:false,prev_voice_down:false};
-  let mut preffered_dev_name: String = "".to_string();
+  let mut preffered_dev_name: String = "./sounds/".to_string();
   let mut voice_down_key_val: u32 = 0x12;
+  //
+  let mut sound_dir_basename: String = "".to_string();
   //
   let mut cli_config: String;
   let mut args = env::args().skip(1);
@@ -301,6 +305,15 @@ fn main() {
           panic!("No value specified for parameter: --voice");
         }
       }
+      "-s" | "--sounds" => {
+        if let Some(arg_config) = args.next() {
+          cli_config = arg_config;
+          sound_dir_basename = "".to_string();
+          sound_dir_basename = format!("./{}/", cli_config);
+        } else {
+          panic!("No value specified for parameter: --sounds");
+        }
+      }
       /*"-q" | "--quiet" => {
         println!("Quiet mode is not supported yet.");
       }
@@ -332,7 +345,8 @@ fn main() {
   let mut file_position: usize = 0;
   let mut file_position_max: usize = 0;
   //let mut folders = list_folders("../synergyst-soundboard-util/sounds/").unwrap();
-  let mut folders = list_folders("./sounds/").unwrap();
+  //let mut folders = list_folders("./sounds/").unwrap();
+  let mut folders = list_folders(&sound_dir_basename).unwrap();
   for folder in &folders {
     println!("{}: {}", folder_position_max, folder);
     folder_position_max += 1;
