@@ -1,0 +1,7 @@
+FFMPEG: https://ffmpeg.org/
+
+YouTube-DLP: https://github.com/yt-dlp/yt-dlp
+
+VB-Audio Cable: https://shop.vb-audio.com/en/win-apps/11-vb-cable.html
+
+VB-Audio VoiceMeeter Banana: https://shop.vb-audio.com/en/win-apps/10-voicemeeter-banana.html
