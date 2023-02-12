@@ -247,14 +247,17 @@ fn help() {
   \t{} --version
   \t\t- Shows the program version
   \t{} -n, --name
-  \t\t- Runs the program with preferred playback device name
+  \t\t- preferred playback device name
   \t{} -i, --id
-  \t\t- Runs the program with preferred playback device ID\n", prog_name, prog_name, prog_name, prog_name, prog_name);
+  \t\t- preferred playback device ID
+  \t{} -t, --voice
+  \t\t- voice transmit keycode. Choose 'hexadecimal' values from: https://nehe.gamedev.net/article/msdn_virtualkey_codes/15009/\n", prog_name, prog_name, prog_name, prog_name, prog_name, prog_name);
 }
 fn main() {
   let mut user_input_enum:UserInput = UserInput::NoUserInput;
   let mut dev_infos:DevInfo = DevInfo{dev_index_input:0,dev_index_output:0,is_voice_down:false,prev_voice_down:false};
   let mut preffered_dev_name: String = "".to_string();
+  let mut voice_down_key_val: u32 = 0x12;
   //
   let mut cli_config: String;
   let mut args = env::args().skip(1);
@@ -290,6 +293,14 @@ fn main() {
           panic!("No value specified for parameter: --id");
         }
       }
+      "-t" | "--voice" => {
+        if let Some(arg_config) = args.next() {
+          cli_config = arg_config;
+          voice_down_key_val = cli_config.parse::<u32>().unwrap();
+        } else {
+          panic!("No value specified for parameter: --voice");
+        }
+      }
       /*"-q" | "--quiet" => {
         println!("Quiet mode is not supported yet.");
       }
@@ -312,6 +323,9 @@ fn main() {
       }
     }
   }
+  //
+  let voice_down_key_val_u8: u8 = hex_to_i32(&voice_down_key_val.to_string()) as u8;
+  println!("Voice transmit keycode: WIN hex [{}], ASCII hex [{:#?}], char [{}]", voice_down_key_val, voice_down_key_val_u8, voice_down_key_val_u8 as char);
   //
   let mut folder_position: usize = 0;
   let mut folder_position_max: usize = 0;
@@ -415,7 +429,7 @@ fn main() {
   config.playback_mut().set_device_id(Some(playback_devs[preffered_dev_id].id().clone()));
   //
   loop {
-    dev_infos.is_voice_down = listen_for_key_press(0x12);
+    dev_infos.is_voice_down = listen_for_key_press(voice_down_key_val);
     file_infos.is_cycle_forward_file_down = listen_for_key_press(0x60);
     file_infos.is_cycle_backward_file_down = listen_for_key_press(0x61);
     folder_infos.is_cycle_backward_dir_down = listen_for_key_press(0x64);
