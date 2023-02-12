@@ -263,7 +263,7 @@ fn main() {
   }).expect("failed to get devices");
   //playbackInfo.
   //
-  let mut dev_infos:DevInfo = DevInfo{dev_index_input:1,dev_index_output:1,is_voice_down:false,prev_voice_down:false};
+  let mut dev_infos:DevInfo = DevInfo{dev_index_input:0,dev_index_output:0,is_voice_down:false,prev_voice_down:false};
   //
   /*let result = enumerate_devices();
   println!("{:?}", result);*/
@@ -294,24 +294,12 @@ fn main() {
     dev_infos.is_voice_down = listen_for_key_press(0x12);
     file_infos.is_cycle_forward_file_down = listen_for_key_press(0x60);
     file_infos.is_cycle_backward_file_down = listen_for_key_press(0x61);
-    /*let is_numpad2_pressed = listen_for_key_press(0x62);
-    let is_numpad3_pressed = listen_for_key_press(0x63);*/
     folder_infos.is_cycle_backward_dir_down = listen_for_key_press(0x64);
     folder_infos.is_cycle_forward_dir_down = listen_for_key_press(0x65);
-    /*let is_numpad6_pressed = listen_for_key_press(0x66);
-    let is_numpad7_pressed = listen_for_key_press(0x67);
-    let is_numpad8_pressed = listen_for_key_press(0x68);
-    let is_numpad9_pressed = listen_for_key_press(0x69);*/
-    /*print!("\r                                                                                                                                                                        \r");
-    print!("NUM 0: {:?}, NUM 1: {:?}, NUM 2: {:?}, NUM 3: {:?}, NUM 4: {:?}, NUM 5: {:?}, NUM 6: {:?}, NUM 7: {:?}, NUM 8: {:?}, NUM 9: {:?}",
-    is_numpad0_pressed, is_numpad1_pressed, is_numpad2_pressed, is_numpad3_pressed, is_numpad4_pressed, is_numpad5_pressed, is_numpad6_pressed, is_numpad7_pressed, is_numpad8_pressed, is_numpad9_pressed);*/
-    //
-    //
     //
     //
     //
     let mut temp_file_iter: i32 = *file_infos.snd_iter as i32;
-    //
     if file_infos.is_cycle_forward_file_down && file_infos.is_cycle_forward_file_down != file_infos.prev_cycle_forward_file_down {
       temp_file_iter += 1;
       if temp_file_iter > file_infos.actual_audio_file_list_size.try_into().unwrap() {
@@ -333,10 +321,7 @@ fn main() {
     //
     //
     //
-    //
-    //
     let mut temp_folder_iter: i32 = *folder_infos.snd_dir_iter as i32;
-    //
     if folder_infos.is_cycle_forward_dir_down && folder_infos.is_cycle_forward_dir_down != folder_infos.prev_cycle_forward_dir_down {
       temp_folder_iter += 1;
       if temp_folder_iter > folder_infos.actual_audio_dir_list_size.try_into().unwrap() {
@@ -421,6 +406,7 @@ fn main() {
         dev_names.push(playback_devs[idx].name().to_string());
         if dev_names[idx] == preffered_dev_name {
           preffered_dev_id = idx;
+          break;
         }
         //println!("{}: {}", idx, dev_names[idx]);
       }
@@ -457,12 +443,9 @@ fn main() {
     //
     file_infos.prev_cycle_forward_file_down = file_infos.is_cycle_forward_file_down;
     file_infos.prev_cycle_backward_file_down = file_infos.is_cycle_backward_file_down;
-    //
     folder_infos.prev_cycle_forward_dir_down = folder_infos.is_cycle_forward_dir_down;
     folder_infos.prev_cycle_backward_dir_down = folder_infos.is_cycle_backward_dir_down;
-    //
     dev_infos.prev_voice_down = dev_infos.is_voice_down;
-    //
   }
   //Ok(())
 }
