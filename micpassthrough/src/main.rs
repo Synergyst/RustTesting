@@ -16,14 +16,16 @@ enum UserInput {
   NoUserInput,
 }
 struct DevInfo {
-    dev_index_output: usize,
-    dev_index_input: usize,
-    is_voice_down: bool,
-    prev_voice_down: bool,
+  dev_index_output: usize,
+  dev_index_input: usize,
 }
 struct PlaybackDevsInfo {
-    playback_devs_id: Vec<Option<DeviceId>>,
-    playback_devs_name: Vec<String>,
+  playback_devs_id: Vec<Option<DeviceId>>,
+  playback_devs_name: Vec<String>,
+}
+struct CaptureDevsInfo {
+    capture_devs_id: Vec<Option<DeviceId>>,
+    capture_devs_name: Vec<String>,
 }
 fn prog() -> Option<String> {
   env::args().next()
@@ -43,17 +45,21 @@ fn help() {
   \t\t- shows this help message
   \t{} --version
   \t\t- shows the program version
-  \t{} -s, --sounds <sounds directory>
-  \t\t- the directory containing the sound libraries (default: sounds)
-  \t{} -n, --name <playback device name>
+  \t{} --playname <playback device name>
   \t\t- preferred playback device name
-  \t{} -i, --id <playback device ID>
-  \t\t- preferred playback device ID\n", prog_name, VERSION, prog_name, prog_name, prog_name, prog_name, prog_name, prog_name);
+  \t{} --playid <playback device ID>
+  \t\t- preferred playback device ID
+  \t{} --capname <playback device name>
+  \t\t- preferred playback device name
+  \t{} --capid <playback device ID>
+  \t\t- preferred playback device ID\n", prog_name, VERSION, prog_name, prog_name, prog_name, prog_name, prog_name, prog_name, prog_name);
 }
 fn main() {
-  let mut user_input_enum:UserInput = UserInput::NoUserInput;
-  let mut dev_infos:DevInfo = DevInfo{dev_index_input:0,dev_index_output:0,is_voice_down:false,prev_voice_down:false};
-  let mut preffered_dev_name: String = "".to_string();
+  let mut user_input_enum_play:UserInput = UserInput::NoUserInput;
+  let mut user_input_enum_cap:UserInput = UserInput::NoUserInput;
+  let mut dev_infos:DevInfo = DevInfo{dev_index_input:0,dev_index_output:0};
+  let mut preffered_play_dev_name: String = "".to_string();
+  let mut preffered_cap_dev_name: String = "".to_string();
   //
   let mut cli_config: String;
   let mut args = env::args().skip(1);
@@ -67,26 +73,48 @@ fn main() {
         println!("{} {}", prog().unwrap_or_default(), VERSION);
         std::process::exit(0);
       }
-      "-n" | "--name" => {
+      "--playname" => {
         if let Some(arg_config) = args.next() {
           cli_config = arg_config;
-          user_input_enum = UserInput::UserInputName;
-          preffered_dev_name = cli_config;
+          user_input_enum_play = UserInput::UserInputName;
+          preffered_play_dev_name = cli_config;
           //let preffered_dev_name: String = "VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)".to_string();
-          println!("Will look for preffered device name of: [{}]", preffered_dev_name);
+          println!("Will look for preffered device name of: [{}]", preffered_play_dev_name);
         } else {
-          panic!("No value specified for parameter: --name");
+          panic!("No value specified for parameter: --playname");
         }
       }
-      "-i" | "--id" => {
+      "--playid" => {
         if let Some(arg_config) = args.next() {
           cli_config = arg_config;
           let id_num = cli_config.parse::<usize>().unwrap();
-          user_input_enum = UserInput::UserInputId;
+          user_input_enum_play = UserInput::UserInputId;
           dev_infos.dev_index_output = id_num;
           println!("Will look for preffered device ID of: [{}]", id_num);
         } else {
-          panic!("No value specified for parameter: --id");
+          panic!("No value specified for parameter: --playid");
+        }
+      }
+      "--capname" => {
+        if let Some(arg_config) = args.next() {
+          cli_config = arg_config;
+          user_input_enum_cap = UserInput::UserInputName;
+          preffered_cap_dev_name = cli_config;
+          //let preffered_dev_name: String = "VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)".to_string();
+          println!("Will look for preffered device name of: [{}]", preffered_cap_dev_name);
+        } else {
+          panic!("No value specified for parameter: --capname");
+        }
+      }
+      "--capid" => {
+        if let Some(arg_config) = args.next() {
+          cli_config = arg_config;
+          let id_num = cli_config.parse::<usize>().unwrap();
+          user_input_enum_cap = UserInput::UserInputId;
+          dev_infos.dev_index_input = id_num;
+          println!("Will look for preffered device ID of: [{}]", id_num);
+        } else {
+          panic!("No value specified for parameter: --capid");
         }
       }
       _ => {
@@ -104,8 +132,10 @@ fn main() {
   config.playback_mut().set_channels(2);
   config.set_sample_rate(48000);
   //
-  let mut dev_ids: Vec<Option<DeviceId>> = Vec::new();
-  let mut dev_names: Vec<String> = Vec::new();
+  let mut play_dev_ids: Vec<Option<DeviceId>> = Vec::new();
+  let mut play_dev_names: Vec<String> = Vec::new();
+  let mut cap_dev_ids: Vec<Option<DeviceId>> = Vec::new();
+  let mut cap_dev_names: Vec<String> = Vec::new();
   let context = Context::new(&[], None).expect("failed to create context");
   context.with_devices(|playback_devices, capture_devices| {
     println!("Playback Devices:");
@@ -118,26 +148,29 @@ fn main() {
       println!("\t{}: {}", idx, device.name());
     }
   }).expect("failed to get devices");
-  let mut preffered_dev_id: usize = 0;
-  let dev_count = context.playback_device_count() as usize;
+  let mut preffered_play_dev_id: usize = 0;
+  let mut preffered_cap_dev_id: usize = 0;
+  let play_dev_count = context.playback_device_count() as usize;
+  let cap_dev_count = context.capture_device_count() as usize;
   let playback_devs = context.playback_devices();
+  let capture_devs = context.capture_devices();
   //
-  for idx in 0..dev_count {
-    dev_ids.push(Some(playback_devs[idx].id().clone()));
-    dev_names.push(playback_devs[idx].name().to_string());
-    match user_input_enum {
+  for idx in 0..play_dev_count {
+    play_dev_ids.push(Some(playback_devs[idx].id().clone()));
+    play_dev_names.push(playback_devs[idx].name().to_string());
+    match user_input_enum_play {
       UserInput::UserInputName => {
         //println!("Comparing [{}] to [{}]", dev_names[idx], preffered_dev_name);
-        if dev_names[idx] == preffered_dev_name {
-          preffered_dev_id = idx;
-          println!("Using [{}] (preffered device) at [{}] (index) by manual name input", preffered_dev_name, idx);
+        if play_dev_names[idx] == preffered_play_dev_name {
+          preffered_play_dev_id = idx;
+          println!("Using [{}] (preffered device) at [{}] (index) by manual name input", preffered_play_dev_name, idx);
           break;
         }
       },
       UserInput::UserInputId => {
         if idx == dev_infos.dev_index_output {
-          preffered_dev_id = idx;
-          println!("Using [{}] (preffered device) at [{}] (index) by manual index input", dev_names[dev_infos.dev_index_output], idx);
+          preffered_play_dev_id = idx;
+          println!("Using [{}] (preffered device) at [{}] (index) by manual index input", play_dev_names[dev_infos.dev_index_output], idx);
           break;
         }
       },
@@ -148,8 +181,39 @@ fn main() {
     }
   }
   //
-  let playback_devs_infos: PlaybackDevsInfo = PlaybackDevsInfo{playback_devs_id: dev_ids, playback_devs_name: dev_names};
-  config.playback_mut().set_device_id(Some(playback_devs[preffered_dev_id].id().clone()));
+  //
+  //
+  for idx in 0..cap_dev_count {
+    cap_dev_ids.push(Some(capture_devs[idx].id().clone()));
+    cap_dev_names.push(capture_devs[idx].name().to_string());
+    match user_input_enum_cap {
+      UserInput::UserInputName => {
+        //println!("Comparing [{}] to [{}]", dev_names[idx], preffered_dev_name);
+        if cap_dev_names[idx] == preffered_cap_dev_name {
+          preffered_cap_dev_id = idx;
+          println!("Using [{}] (preffered device) at [{}] (index) by manual name input", preffered_cap_dev_name, idx);
+          break;
+        }
+      },
+      UserInput::UserInputId => {
+        if idx == dev_infos.dev_index_input {
+          preffered_cap_dev_id = idx;
+          println!("Using [{}] (preffered device) at [{}] (index) by manual index input", cap_dev_names[dev_infos.dev_index_input], idx);
+          break;
+        }
+      },
+      UserInput::NoUserInput => {
+        println!("No preffered device selected, using system default playback device");
+        break;
+      }
+    }
+  }
+  //
+  let playback_devs_infos: PlaybackDevsInfo = PlaybackDevsInfo{playback_devs_id: play_dev_ids, playback_devs_name: play_dev_names};
+  config.playback_mut().set_device_id(Some(playback_devs[preffered_play_dev_id].id().clone()));
+  //
+  let capture_devs_infos: CaptureDevsInfo = CaptureDevsInfo{capture_devs_id: cap_dev_ids, capture_devs_name: cap_dev_names};
+  config.capture_mut().set_device_id(Some(capture_devs[preffered_cap_dev_id].id().clone()));
   //
   loop {
     let mut device = Device::new(None, &config).expect("failed to open playback device");
