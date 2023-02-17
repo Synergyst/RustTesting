@@ -3,12 +3,14 @@
 #![allow(unused_variables)]
 #![allow(unused_assignments)]
 #![allow(overflowing_literals)]
-use miniaudio;
+use miniaudio::{self, FramesMut, Frames, RawDevice};
 use nnnoiseless;
 use std::env;
 use std::path::Path;
-use miniaudio::{Context, Device, DeviceConfig, DeviceType, DeviceId, DecoderConfig, DeviceConfigPlayback, DeviceIdAndName};
+use miniaudio::{Context, Device, DeviceConfig, DeviceType, DeviceId, DecoderConfig, DeviceConfigPlayback, DeviceIdAndName, DeviceConfigCapture, StreamLayout, StreamFormat};
 use std::ffi::OsStr;
+use std::sync::Arc;
+use std::thread;
 static VERSION: &str = "Version 0.1";
 enum UserInput {
   UserInputName,
@@ -127,33 +129,44 @@ fn main() {
     }
   }
   //
-  let mut config = DeviceConfig::new(DeviceType::Playback);
-  config.playback_mut().set_format(miniaudio::Format::S16);
-  config.playback_mut().set_channels(2);
-  config.set_sample_rate(48000);
+  let mut play_config = DeviceConfig::new(DeviceType::Playback);
+  let mut cap_config = DeviceConfig::new(DeviceType::Capture);
+  play_config.playback_mut().set_format(miniaudio::Format::S16);
+  cap_config.capture_mut().set_format(miniaudio::Format::S16);
+  play_config.playback_mut().set_channels(2);
+  cap_config.capture_mut().set_channels(2);
+  play_config.set_sample_rate(48000);
+  cap_config.set_sample_rate(48000);
+  play_config.playback_mut().set_share_mode(miniaudio::ShareMode::Shared);
+  cap_config.capture_mut().set_share_mode(miniaudio::ShareMode::Shared);
   //
   let mut play_dev_ids: Vec<Option<DeviceId>> = Vec::new();
   let mut play_dev_names: Vec<String> = Vec::new();
   let mut cap_dev_ids: Vec<Option<DeviceId>> = Vec::new();
   let mut cap_dev_names: Vec<String> = Vec::new();
-  let context = Context::new(&[], None).expect("failed to create context");
-  context.with_devices(|playback_devices, capture_devices| {
+  //
+  let play_context = Context::new(&[], None).expect("failed to create playback context");
+  play_context.with_playback_devices(|playback_devices| {
     println!("Playback Devices:");
     for (idx, device) in playback_devices.iter().enumerate() {
       println!("\t{}: [{}]", idx, device.name());
       //if idx == dev_infos.dev_index_output
     }
+  }).expect("failed to get playback devices");
+  //
+  let cap_context = Context::new(&[], None).expect("failed to create capture context");
+  cap_context.with_capture_devices(|capture_devices| {
     println!("Capture Devices:");
     for (idx, device) in capture_devices.iter().enumerate() {
       println!("\t{}: {}", idx, device.name());
     }
-  }).expect("failed to get devices");
+  }).expect("failed to get capture devices");
   let mut preffered_play_dev_id: usize = 0;
   let mut preffered_cap_dev_id: usize = 0;
-  let play_dev_count = context.playback_device_count() as usize;
-  let cap_dev_count = context.capture_device_count() as usize;
-  let playback_devs = context.playback_devices();
-  let capture_devs = context.capture_devices();
+  let play_dev_count = play_context.playback_device_count() as usize;
+  let cap_dev_count = cap_context.capture_device_count() as usize;
+  let playback_devs = play_context.playback_devices();
+  let capture_devs = cap_context.capture_devices();
   //
   for idx in 0..play_dev_count {
     play_dev_ids.push(Some(playback_devs[idx].id().clone()));
@@ -203,24 +216,35 @@ fn main() {
         }
       },
       UserInput::NoUserInput => {
-        println!("No preffered device selected, using system default playback device");
+        println!("No preffered device selected, using system default capture device");
         break;
       }
     }
   }
   //
   let playback_devs_infos: PlaybackDevsInfo = PlaybackDevsInfo{playback_devs_id: play_dev_ids, playback_devs_name: play_dev_names};
-  config.playback_mut().set_device_id(Some(playback_devs[preffered_play_dev_id].id().clone()));
+  play_config.playback_mut().set_device_id(Some(playback_devs[preffered_play_dev_id].id().clone()));
   //
   let capture_devs_infos: CaptureDevsInfo = CaptureDevsInfo{capture_devs_id: cap_dev_ids, capture_devs_name: cap_dev_names};
-  config.capture_mut().set_device_id(Some(capture_devs[preffered_cap_dev_id].id().clone()));
+  cap_config.capture_mut().set_device_id(Some(capture_devs[preffered_cap_dev_id].id().clone()));
   //
+  //
+  //
+  /*let mut cap_device = Device::new(Some(cap_context), &cap_config).expect("failed to open capture device");
+  cap_device.set_data_callback(move |_device: &RawDevice, input: &mut miniaudio::FramesMut, _frames: &Frames| {
+    let mut data = input.frames_mut();
+    //
+    unsafe {
+      let mut play_device = Arc::new(Device::new(Some(play_context), &play_config)).expect("failed to open playback device");
+      let mut play_dev = Arc::clone();
+      play_device.set_data_callback(move |_device: &RawDevice, output: &mut miniaudio::FramesMut, _frames: &Frames| {
+        
+      });
+      play_device.start().expect("failed to start device");
+    }
+  });
+  cap_device.start().expect("failed to start device");
   loop {
-    let mut device = Device::new(None, &config).expect("failed to open playback device");
-    device.set_data_callback(move |_device, output, _frames| {
-      //decoder.read_pcm_frames(output);
-    });
-    device.start().expect("failed to start device");
-  }
+    //
+  }*/
 }
-  

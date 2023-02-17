@@ -1,109 +1,47 @@
-use crossterm::{
-  event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-  execute,
-  terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use std::{error::Error, io};
-use tui::{
-  backend::{Backend, CrosstermBackend},
-  layout::{Constraint, Layout},
-  style::{Color, Modifier, Style},
-  widgets::{Block, Borders, Cell, Row, Table, TableState},
-  Frame, Terminal,
-};
-struct App<'a> {
-  state: TableState,
-  items: Vec<Vec<&'a str>>,
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(unused_assignments)]
+#![allow(overflowing_literals)]
+use std::{thread, time, time::Duration};
+
+#[link(name = "testing/lib/micpassthrough")]
+extern "C" {
+  fn retDevNameList(playbackCount: *mut libc::c_char, captureCount: *mut libc::c_char, playbackListGUI: *mut libc::c_char, captureListGUI: *mut libc::c_char, len: libc::c_int) -> libc::c_int;
+  fn startMicPassthrough(captureDev: i32, playbackDev: i32) -> i32;
 }
-impl<'a> App<'a> {
-  fn new() -> App<'a> {
-    App {
-      state: TableState::default(),
-      items: vec![
-        vec!["folder1", "filename1"],
-        vec!["folder2", "filename2"],
-      ],
-    }
+
+fn main() {
+  let mut playback_count: [libc::c_char; 256] = [0; 256];
+  let mut capture_count: [libc::c_char; 256] = [0; 256];
+  let mut playback_list_gui: [libc::c_char; 8192] = [0; 8192];
+  let mut capture_list_gui: [libc::c_char; 8192] = [0; 8192];
+  let len = 8192;
+  let ret = unsafe { retDevNameList(playback_count.as_mut_ptr(), capture_count.as_mut_ptr(), playback_list_gui.as_mut_ptr(), capture_list_gui.as_mut_ptr(), len) };
+  if ret != 1 {
+    println!("Failed to call retDevNameList: {}", ret);
+    return;
   }
-  pub fn next(&mut self) {
-    let i = match self.state.selected() {
-      Some(i) => {
-        if i >= self.items.len() - 1 {
-          0
-        } else {
-          i + 1
-        }
-      }
-      None => 0,
-    };
-    self.state.select(Some(i));
+  let playback_count_usize = unsafe { std::ffi::CStr::from_ptr(playback_count.as_ptr()).to_str().unwrap().parse::<usize>().unwrap() };
+  let capture_count_usize = unsafe { std::ffi::CStr::from_ptr(capture_count.as_ptr()).to_str().unwrap().parse::<usize>().unwrap() };
+  let playback_list_str = unsafe { std::ffi::CStr::from_ptr(playback_list_gui.as_ptr()).to_string_lossy() };
+  let capture_list_str = unsafe { std::ffi::CStr::from_ptr(capture_list_gui.as_ptr()).to_string_lossy() };
+  let playback_list = playback_list_str.split("\n").collect::<Vec<&str>>();
+  let capture_list = capture_list_str.split("\n").collect::<Vec<&str>>();
+  //
+  println!("\nPlayback count: {}", playback_count_usize);
+  for i in 0..playback_count_usize {
+    println!("\t[{}] -> [{}]", i, playback_list[i])
   }
-  pub fn previous(&mut self) {
-    let i = match self.state.selected() {
-      Some(i) => {
-        if i == 0 {
-          self.items.len() - 1
-        } else {
-          i - 1
-        }
-      }
-      None => 0,
-    };
-    self.state.select(Some(i));
+  println!("\nCapture count: {}", capture_count_usize);
+  for i in 0..capture_count_usize {
+    println!("\t[{}] -> [{}]", i, capture_list[i])
   }
-}
-fn main() -> Result<(), Box<dyn Error>> {
-  // setup terminal
-  enable_raw_mode()?;
-  let mut stdout = io::stdout();
-  execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-  let backend = CrosstermBackend::new(stdout);
-  let mut terminal = Terminal::new(backend)?;
-  // create app and run it
-  let app = App::new();
-  let res = run_app(&mut terminal, app);
-  // restore terminal
-  disable_raw_mode()?;
-  execute!(
-    terminal.backend_mut(),
-    LeaveAlternateScreen,
-    DisableMouseCapture
-  )?;
-  terminal.show_cursor()?;
-  if let Err(err) = res {
-    println!("{:?}", err)
-  }
-  Ok(())
-}
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
-  loop {
-    terminal.draw(|f| ui(f, &mut app))?;
-    if let Event::Key(key) = event::read()? {
-      match key.code {
-        KeyCode::Char('q') => return Ok(()),
-        KeyCode::Down => app.next(),
-        KeyCode::Up => app.previous(),
-        _ => {}
-      }
-    }
-  }
-}
-fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-  let rects = Layout::default().constraints([Constraint::Percentage(100)].as_ref()).margin(5).split(f.size());
-  let selected_style = Style::default().add_modifier(Modifier::REVERSED);
-  let normal_style = Style::default().bg(Color::Blue);
-  //let header_cells = ["Header1", "Header2", "Header3"].iter().map(|h| Cell::from(*h).style(Style::default().fg(Color::Red)));
-  let header_cells = ["CurrentFolder", "CurrentFile"].iter().map(|h| Cell::from(*h).style(Style::default().fg(Color::Red)));
-  let header = Row::new(header_cells).style(normal_style).height(1).bottom_margin(1);
-  let rows = app.items.iter().map(|item| {
-    let height = item.iter().map(|content| content.chars().filter(|c| *c == '\n').count()).max().unwrap_or(0)+ 1;
-    let cells = item.iter().map(|c| Cell::from(*c));
-    Row::new(cells).height(height as u16).bottom_margin(1)
-  });
-  let t = Table::new(rows).header(header).block(Block::default().borders(Borders::NONE).title("Soundboard")).highlight_style(selected_style).highlight_symbol("-->").widths(&[
-    Constraint::Percentage(50),
-    Constraint::Length(30),
-    Constraint::Min(10),
-  ]);
-  f.render_stateful_widget(t, rects[0], &mut app.state);
+  //
+  let duration = time::Duration::from_millis(1000);
+  let now = time::Instant::now();
+  thread::sleep(duration);
+  assert!(now.elapsed() >= duration);
+  //
+  unsafe { startMicPassthrough(3, 5); }
 }

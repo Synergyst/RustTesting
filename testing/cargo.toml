@@ -4,5 +4,10 @@ version = "0.0.1"
 edition = "2021"
 
 [dependencies]
-tui = { version = "*" }
-crossterm = { version = "*" }
+cpal = { version = "*" }
+anyhow = { version = "*" }
+hound = { version = "*" }
+clap = { version = "*" }
+structopt = { version = "*" }
+ringbuf = { version = "*" }
+libc = { version = "*" }

@@ -1,63 +1,87 @@
+use std::io::{stderr, stdout, Read, Write};
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::thread;
-use std::net::{TcpListener, TcpStream, Shutdown};
-use std::io::{Read, Write};
+//use std::fs::File;
+//use std::io::BufWriter;
+//use std::io::prelude::*;
 
 fn handle_client(mut stream: TcpStream) {
-    let mut data = [0 as u8; 50]; // using 50 byte buffer
-    while match stream.read(&mut data) {
+    /*let file_name = "out-s16-audio.raw";
+    let mut file = File::create(file_name).unwrap();*/
+    let mut data = vec![0; 480];
+    while match stream.read(unsafe { std::mem::transmute::<&mut [i16], &mut [u8]>(&mut data) }) {
         Ok(size) => {
-            // echo everything!
-            stream.write(&data[0..size]).unwrap();
-            println!("{}", String::from_utf8_lossy(&data[0..size]));
+            //file.write_all(unsafe { std::mem::transmute::<&[i16], &[u8]>(&data[0..size / 2]) }).unwrap();
+            //println!("Data written successfully to {}", file_name);
 
+            // write the data back to the stream
+            match stream.write(unsafe { std::mem::transmute::<&[i16], &[u8]>(&data) }) {
+                Ok(_) => {
+                    //println!("Data sent successfully to {}", stream.peer_addr().unwrap());
+                }
+                Err(e) => {
+                    println!(
+                        "An error occurred while sending data to {}: {}\n",
+                        stream.peer_addr().unwrap(),
+                        e
+                    );
+                    stream.shutdown(std::net::Shutdown::Both).unwrap();
+                }
+            }
             true
-        },
-        Err(_) => {
-            println!("An error occurred, terminating connection with {}", stream.peer_addr().unwrap());
-            stream.shutdown(Shutdown::Both).unwrap();
+        }
+        Err(e) => {
+            println!(
+                "An error occurred while reading data from {}: {}\n",
+                stream.peer_addr().unwrap(),
+                e
+            );
+            stream.shutdown(std::net::Shutdown::Both).unwrap();
             false
         }
     } {}
 }
-
-/*fn handle_client(mut stream: TcpStream) {
-    let mut data = [0 as u8; 50]; // using 50 byte buffer
-    match stream.read(&mut data) {
-        Ok(size) => {
-            println!("{:?}", &data[0..size]);
-            // write the data back to the stream
-            match stream.write(&data[0..size]) {
-                Ok(_) => {
-                    println!("Data sent successfully to {}", stream.peer_addr().unwrap());
-                },
-                Err(e) => {
-                    println!("An error occurred while sending data to {}: {}", stream.peer_addr().unwrap(), e);
-                    stream.shutdown(Shutdown::Both).unwrap();
+fn find_first_available_port(start_port: u16) -> Option<u16> {
+    let mut port = start_port;
+    loop {
+        match TcpListener::bind(("0.0.0.0", port)) {
+            Ok(listener) => {
+                // Port is available
+                drop(listener);
+                return Some(port);
+            }
+            Err(_) => {
+                // Port is in use, try next port
+                port += 1;
+                if port > u16::MAX {
+                    // Reached the maximum port number without finding an available port
+                    return None;
                 }
             }
-        },
-        Err(e) => {
-            println!("An error occurred while reading data from {}: {}", stream.peer_addr().unwrap(), e);
-            stream.shutdown(Shutdown::Both).unwrap();
         }
     }
-}*/
+}
 fn main() {
-    let listener = TcpListener::bind("0.0.0.0:3333").unwrap();
+    let port = find_first_available_port(2224).unwrap();
+    let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).unwrap();
     // accept connections and process them, spawning a new thread for each one
-    println!("Server listening on port 3333");
+    let stderr = stderr();
+    stderr.lock().write_all(format!("Server listening on port {}\n", port).as_bytes()).unwrap();
+    stderr.lock().flush().unwrap();
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                println!("New connection: {}", stream.peer_addr().unwrap());
-                thread::spawn(move|| {
+                stderr.lock().write_all(format!("New connection: {}\n", stream.peer_addr().unwrap()).as_bytes()).unwrap();
+                stderr.lock().flush().unwrap();
+                thread::spawn(move || {
                     // connection succeeded
                     handle_client(stream)
                 });
             }
             Err(e) => {
-                println!("Error: {}", e);
-                /* connection failed */
+                stderr.lock().write_all(format!("Error: {}\n", e).as_bytes()).unwrap();
+                stderr.lock().flush().unwrap();
+                // connection failed
             }
         }
     }

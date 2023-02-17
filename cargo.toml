@@ -5,4 +5,6 @@ members = [
     "client",
     "testing",
     "micpassthrough",
+    "rnnoisedll",
+    "testingalt",
 ]
